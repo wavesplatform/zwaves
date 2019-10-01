@@ -1,0 +1,16 @@
+[workspace]
+members = [
+  "zwaves_wasm",
+  "zwaves_primitives",
+  "zwaves_circuit"
+]
+
+[profile.release]
+lto = true
+panic = 'abort'
+codegen-units = 1
+
+[profile.dev]
+lto = true
+panic = 'abort'
+codegen-units = 8

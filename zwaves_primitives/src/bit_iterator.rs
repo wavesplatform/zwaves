@@ -1,4 +1,3 @@
-// Resulting iterator is little endian: lowest bit first
 
 #[derive(Debug)]
 pub struct BitIteratorLe<E> {

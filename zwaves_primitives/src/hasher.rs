@@ -5,7 +5,7 @@ extern crate pairing;
 extern crate sapling_crypto;
 
 use pairing::bls12_381::Bls12;
-use pairing::{Field, PrimeField, PrimeFieldRepr};
+use pairing::{PrimeField};
 use sapling_crypto::jubjub::{JubjubBls12, JubjubEngine};
 use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
 
