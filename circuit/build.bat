@@ -1,0 +1,1 @@
+wsl mainframer wasm-pack build
