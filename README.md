@@ -7,6 +7,13 @@ Here is workspace to build the circuit for anonymous transactions for waves and 
 * zwaves_wasm - crate for wasm bindings
 * js - example, how to use js bindings
 
+First, we need to install the dependencies (`cargo` and `npm` should be already installed):
+
+```
+cargo install wasm-pack
+cd js && npm install
+```
+
 To run tests
 
 ```bash
