@@ -1,7 +1,6 @@
+#![feature(test)]
 
-use zwaves_primitives::hasher::PedersenHasherBls12;
-
-
+extern crate test;
 
 use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
@@ -46,6 +45,8 @@ impl <'a, E: JubjubEngine> Circuit<E> for PedersenDemo<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test::Bencher;
+    use zwaves_primitives::hasher::PedersenHasherBls12;
     //use sapling_crypto::circuit::test::TestConstraintSystem;
 
 
@@ -111,4 +112,67 @@ mod tests {
         assert!(result, "Proof is correct");
     }
 
+    #[bench]
+    fn bench_pedersen_proof_create(b: &mut Bencher) {
+        let rng = &mut OsRng::new().unwrap();
+        let pedersen_params = &JubjubBls12::new();
+
+        let preimage = rng.gen();
+        let hasher = PedersenHasherBls12::default();
+        let image = hasher.hash(preimage);
+
+        let params = {
+            let c = PedersenDemo::<Bls12> {
+                params: pedersen_params,
+                image: None,
+                preimage: None,
+            };
+            generate_random_parameters(c, rng).unwrap()
+        };
+
+        // Prepare the verification key (for proof verification)
+        let pvk = prepare_verifying_key(&params.vk);
+
+        b.iter(|| {
+            let c = PedersenDemo::<Bls12> {
+                params: pedersen_params,
+                image: Some(image),
+                preimage: Some(preimage),
+            };
+            create_random_proof(c, &params, rng).unwrap()
+        });
+    }
+
+    #[bench]
+    fn bench_pedersen_proof_verify(b: &mut Bencher) {
+        let rng = &mut OsRng::new().unwrap();
+        let pedersen_params = &JubjubBls12::new();
+
+        let preimage = rng.gen();
+        let hasher = PedersenHasherBls12::default();
+        let image = hasher.hash(preimage);
+
+        let params = {
+            let c = PedersenDemo::<Bls12> {
+                params: pedersen_params,
+                image: None,
+                preimage: None,
+            };
+            generate_random_parameters(c, rng).unwrap()
+        };
+
+        // Prepare the verification key (for proof verification)
+        let pvk = prepare_verifying_key(&params.vk);
+
+        let c = PedersenDemo::<Bls12> {
+            params: pedersen_params,
+            image: Some(image),
+            preimage: Some(preimage),
+        };
+        let stopwatch = std::time::Instant::now();
+        let proof = create_random_proof(c, &params, rng).unwrap();
+
+        b.iter(||
+            verify_proof(&pvk, &proof, &[image]).unwrap());
+    }
 }
