@@ -32,6 +32,14 @@ impl<E: JubjubEngine> PedersenHasher<E> {
     r.extend((len..n).map(|_| false));
     r
   }
+
+  pub fn compress(&self, left: &E::Fr, right: &E::Fr, p: Personalization) -> E::Fr {
+    let input = BitIteratorLe::new(left.into_repr()).take(E::Fr::NUM_BITS as usize).chain(
+      BitIteratorLe::new(right.into_repr()).take(E::Fr::NUM_BITS as usize));
+    pedersen_hash::<E, _>(p, input, &self.params)
+      .into_xy()
+      .0
+  }
 }
 
 pub type PedersenHasherBls12 = PedersenHasher<Bls12>;
@@ -42,4 +50,21 @@ impl Default for PedersenHasherBls12 {
       params: JubjubBls12::new(),
     }
   }
+}
+
+
+
+#[test]
+fn test_pedersen_hash() {
+    let hasher = PedersenHasherBls12::default();
+    let message = vec![false, false, false, false, false, false, false, false];
+    let mut hash = hasher.hash_bits(message);
+
+    println!("testing....");
+
+    for i in 0..63 {
+      hash = hasher.compress(&hash, &hash, Personalization::MerkleTree(i));
+    }
+
+    println!("Empty root hash: {:?}", hash);
 }
