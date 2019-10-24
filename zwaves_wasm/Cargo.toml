@@ -16,7 +16,7 @@ wasm = ["web-sys"]
 wasm-bindgen = "0.2.50"
 rand = {version = "0.7.2", features=["getrandom", "wasm-bindgen"]}
 bellman = { version = "0.1.0", default-features = false }
-sapling-crypto = { git = "https://github.com/zcash-hackworks/sapling-crypto", rev = "21084bde2019c04bd34208e63c3560fe2c02fb0e", default-features = false }
+sapling-crypto = { path = "../sapling-crypto", default-features = false }
 zwaves_primitives = {path = "../zwaves_primitives"}
 
 pairing = "0.14"
