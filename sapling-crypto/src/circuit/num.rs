@@ -252,6 +252,40 @@ impl<E: Engine> AllocatedNum<E> {
         Ok(bits.into_iter().map(|b| Boolean::from(b)).collect())
     }
 
+    pub fn into_bits_le_limited<CS>(
+        &self,
+        mut cs: CS,
+        limit: usize
+    ) -> Result<Vec<Boolean>, SynthesisError>
+        where CS: ConstraintSystem<E>
+    {
+        let bits = boolean::field_into_allocated_bits_le_limited(
+            &mut cs,
+            self.value,
+            limit
+        )?;
+
+        let mut lc = LinearCombination::zero();
+        let mut coeff = E::Fr::one();
+
+        for bit in bits.iter() {
+            lc = lc + (coeff, bit.get_variable());
+
+            coeff.double();
+        }
+
+        lc = lc - self.variable;
+
+        cs.enforce(
+            || "unpacking constraint",
+            |lc| lc,
+            |lc| lc,
+            |_| lc
+        );
+
+        Ok(bits.into_iter().map(|b| Boolean::from(b)).collect())
+    }    
+
     pub fn mul<CS>(
         &self,
         mut cs: CS,
