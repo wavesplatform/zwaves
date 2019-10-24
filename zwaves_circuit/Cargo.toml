@@ -10,7 +10,7 @@ crate-type = ["rlib"]
 [dependencies]
 rand = "0.4"
 bellman = { version = "0.1.0", default-features = false }
-sapling-crypto = { git = "https://github.com/zcash-hackworks/sapling-crypto", rev = "21084bde2019c04bd34208e63c3560fe2c02fb0e", default-features = false }
+sapling-crypto = { path = "../sapling-crypto", default-features = false }
 pairing = "0.14"
 zwaves_primitives = {path = "../zwaves_primitives"}
 
