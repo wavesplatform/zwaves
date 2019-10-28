@@ -81,32 +81,32 @@ impl<E: JubjubEngine> PedersenHasher<E> {
         let mut offset = index & 0x1;
         let mut memframesz = s + offset;
         let zero = <E::Fr as Field>::zero();
-        let mut memframe = vec![&zero; (memframesz + 1) as usize];
+        let mut memframe = vec![zero; (memframesz + 1) as usize];
 
-        (0..s).for_each(|i| memframe[i + offset] = elements[i]);
+        (0..s).for_each(|i| memframe[i + offset] = *elements[i]);
 
         if offset > 0 {
-            memframe[0] = path[0];
+            memframe[0] = *path[0];
         }
 
          (1..height).for_each(|i| {
             offset = (index >> i) & 0x1;
             (0..((memframesz + 1) >> 1)).for_each(|j| {
                 let res = self.compress(&memframe[j * 2], &memframe[j * 2 + 1], Personalization::MerkleTree(i));
-                memframe[j + offset] = &res;
+                memframe[j + offset] = res;
             });
 
             memframesz = offset + ((memframesz + 1) >> 1);
             if memframesz & 0x1 == 1 {
-                memframe[memframesz] = &merkle_defaults[i];
+                memframe[memframesz] = merkle_defaults[i];
             }
 
             if (offset > 0) {
-                memframe[0] = path[i]
+                memframe[0] = *path[i]
             }
         });
 
-        return *memframe[0];
+        return memframe[0];
     }
 }
 
