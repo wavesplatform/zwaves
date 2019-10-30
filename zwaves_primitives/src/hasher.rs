@@ -92,8 +92,7 @@ impl<E: JubjubEngine> PedersenHasher<E> {
          (1..height).for_each(|i| {
             offset = (index >> i) & 0x1;
             (0..((memframesz + 1) >> 1)).for_each(|j| {
-                let res = self.compress(&memframe[j * 2], &memframe[j * 2 + 1], Personalization::MerkleTree(i));
-                memframe[j + offset] = res;
+                memframe[j + offset] = self.compress(&memframe[j * 2], &memframe[j * 2 + 1], Personalization::MerkleTree(i-1));
             });
 
             memframesz = offset + ((memframesz + 1) >> 1);
@@ -189,19 +188,22 @@ fn test_root_2() {
 
 //           Merkle tree:
 //            h14 (root)
-//        h12           !h13
-//   !h8      h9     h10    h11
-// h0 h1  !h2 h3  [h4 h5  h6] h7
+//        !h12           h13
+//   h8      h9     h10    !h11
+// h0 h1  h2 h3  !h4 >h5< [h6 h7]
 #[test]
 fn test_update_root() {
     let hasher = PedersenHasherBls12::default();
 
     let mut tree: Vec<_> = (1..=15).map(|i| hasher.hash_bits(str_to_bin(i))).collect();
 
+    tree[6] = <Bls12 as Engine>::Fr::zero();
+    tree[7] = <Bls12 as Engine>::Fr::zero();
+
     tree[8] = hasher.compress(&tree[0], &tree[1], Personalization::MerkleTree(0));
     tree[9] = hasher.compress(&tree[2], &tree[3], Personalization::MerkleTree(0));
-    tree[10] = hasher.compress(&<Bls12 as Engine>::Fr::zero(), &<Bls12 as Engine>::Fr::zero(), Personalization::MerkleTree(0));
-    tree[11] = hasher.compress(&<Bls12 as Engine>::Fr::zero(), &tree[7], Personalization::MerkleTree(0));
+    tree[10] = hasher.compress(&tree[4], &tree[5], Personalization::MerkleTree(0));
+    tree[11] = hasher.compress(&tree[6], &tree[7], Personalization::MerkleTree(0));
 
     tree[12] = hasher.compress(&tree[8], &tree[9], Personalization::MerkleTree(1));
     tree[13] = hasher.compress(&tree[10], &tree[11], Personalization::MerkleTree(1));
@@ -212,7 +214,7 @@ fn test_update_root() {
         Some(hasher.compress(&res, &res, Personalization::MerkleTree(0)))
     }).collect();
 
-    let res = hasher.update_root(&[&tree[2], &tree[8], &tree[13]], 4, &[&tree[4], &tree[5], &tree[6]], merkle_defaults.as_slice());
+    let res = hasher.update_root(&[&tree[4], &tree[11], &tree[12]], 6, &[&tree[6], &tree[7]], merkle_defaults.as_slice());
 
     assert_eq!(res.to_string(), "Fr(0x4ae608379b1f4b34616934667566fbd43088b5e36ec4e5330b943ba78c273d39)");
 }
