@@ -49,13 +49,13 @@ pub fn merkle_proof<E: JubjubEngine, CS>(
     let path_element = e.0.clone();
 
     let (xl, xr) = AllocatedNum::conditionally_reverse(
-        cs.namespace(|| "conditional reversal of preimage"),
+        cs.namespace(|| format!("conditional reversal of preimage [{:?}]", i)),
         &cur,
         &path_element,
         &cur_is_right
     )?;
 
-    cur = compress(cs.namespace(|| "Merkle hash layer"), pedersen_hash::Personalization::MerkleTree(i as usize), xl, xr, params)?;
+    cur = compress(cs.namespace(|| format!("Merkle hash layer [{:?}]", i)), pedersen_hash::Personalization::MerkleTree(i as usize), xl, xr, params)?;
   }
   Ok(cur)
 }

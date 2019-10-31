@@ -20,17 +20,19 @@ use num::Integer;
 pub fn u64_to_bits_le(x:u64) -> Vec<bool> {
     let mut res = Vec::with_capacity(64);
     for i in 0..63 {
-        res[i] = (x & (1u64<<i)) != 0;
+        res.push((x & (1u64<<i)) != 0);
     }
     res
 }
 
 pub struct PedersenHasher<E: JubjubEngine> {
-    params: E::Params,
-    merkle_proof_defaults: Vec<E::Fr>
+    pub params: E::Params,
+    pub merkle_proof_defaults: Vec<E::Fr>
 }
 
-impl<'a, E: JubjubEngine> PedersenHasher<E> {
+
+
+impl<E: JubjubEngine> PedersenHasher<E> {
     pub fn hash_bits<I: IntoIterator<Item = bool>>(&self, input: I) -> E::Fr {
         pedersen_hash::<E, _>(Personalization::NoteCommitment, input, &self.params)
         .into_xy()
@@ -50,22 +52,25 @@ impl<'a, E: JubjubEngine> PedersenHasher<E> {
         r
     }
 
-  pub fn compress(&self, left: &E::Fr, right: &E::Fr, p: Personalization) -> E::Fr {
-    let input = BitIteratorLe::new(left.into_repr()).take(E::Fr::NUM_BITS as usize).chain(
-      BitIteratorLe::new(right.into_repr()).take(E::Fr::NUM_BITS as usize));
-    pedersen_hash::<E, _>(p, input, &self.params)
-      .into_xy()
-      .0
-  }
+    pub fn compress(&self, left: &E::Fr, right: &E::Fr, p: Personalization) -> E::Fr {
+        let leftbits = self.get_bits_le_fixed(*left, E::Fr::NUM_BITS as usize);
+        let rightbits = self.get_bits_le_fixed(*right, E::Fr::NUM_BITS as usize);
+        let mut total_bits = vec![];
+        total_bits.extend(leftbits);
+        total_bits.extend(rightbits);
+        pedersen_hash::<E, _>(p, total_bits, &self.params)
+        .into_xy()
+        .0
+    }
 
-    pub fn root(&self, sibling: Vec<E::Fr>, index:u64, leaf: E::Fr) -> E::Fr {
+    pub fn root(&self, sibling: &[E::Fr], index:u64, leaf: E::Fr) -> E::Fr {
         let index_bits = u64_to_bits_le(index);
         let merkle_proof_sz = sibling.len();
         assert!(merkle_proof_sz <= self.merkle_proof_defaults.len(), "too long merkle proof");
         
         let mut cur = leaf;
         for i in 0..self.merkle_proof_defaults.len() {
-            let (left, right) = if index_bits[i] { (cur, sibling[i]) } else { (sibling[i], cur) };
+            let (left, right) = if index_bits[i] { (sibling[i], cur) } else { (cur, sibling[i]) };
             cur = self.compress(&left, &right, Personalization::MerkleTree(i));
         }
         cur
@@ -163,22 +168,6 @@ impl Default for PedersenHasherBls12 {
     }
 }
 
-
-
-#[test]
-fn test_pedersen_hash() {
-    let hasher = PedersenHasherBls12::default();
-    let mut hash = hasher.hash(Fr::from_str("6").unwrap());
-
-    println!("testing....");
-
-    for i in 0..63 {
-        hash = hasher.compress(&hash, &hash, Personalization::MerkleTree(i));
-    }
-    println!("Empty root hash: {:?}", hash);
-
-    assert_eq!(hash.to_string(), "Fr(0x01c2bcb36b2d8126d5812ad211bf90706db31f50bf27f77225d558047571e1aa)");
-}
 
 
 fn cmp_slices<T: std::cmp::Eq>(a: &[T], b: &[T]) -> bool {
