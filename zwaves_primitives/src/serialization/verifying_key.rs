@@ -10,59 +10,8 @@ use sapling_crypto::circuit::num::AllocatedNum;
 use sapling_crypto::circuit::pedersen_hash;
 use sapling_crypto::jubjub::JubjubEngine;
 
-use serde::{Serialize, Serializer, Deserialize};
 use self::bincode::Error;
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Fq12 {
-    pub c0: Fq6,
-    pub c1: Fq6,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Fq6 {
-    pub c0: Fq2,
-    pub c1: Fq2,
-    pub c2: Fq2,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Fq2 {
-    pub c0: Fq,
-    pub c1: Fq,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Fq(pub [u64; 6]);
-
-#[derive(Serialize, Deserialize, Debug)]
-struct G1Affine {
-    pub x: Fq,
-    pub y: Fq,
-    pub infinity: bool
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct G2Prepared {
-    pub(crate) coeffs: Vec<(Fq2, Fq2, Fq2)>,
-    pub(crate) infinity: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct OpenPreparedVerifyingKey {
-    /// Pairing result of alpha*beta
-    alpha_g1_beta_g2: Fq12,
-    /// -gamma in G2
-    neg_gamma_g2: G2Prepared,
-    /// -delta in G2
-    neg_delta_g2: G2Prepared,
-    /// Copy of IC from `VerifiyingKey`.
-    ic: Vec<G1Affine>,
-}
-
-struct PreparedVerifyingKeySer {
-    pvk: PreparedVerifyingKey<Bls12>,
-}
+use crate::serialization::objects::*;
 
 pub fn serialize(
     pvk: PreparedVerifyingKey<Bls12>
