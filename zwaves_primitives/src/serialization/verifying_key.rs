@@ -141,7 +141,8 @@ mod test {
             generate_random_parameters(c, rng).unwrap()
         };
 
-        params.vk
+        // Prepare the verification key (for proof verification)
+        let pvk = prepare_verifying_key(&params.vk);
 
         let pvk_exposed: OpenPreparedVerifyingKey = unsafe {
             std::mem::transmute(pvk)
