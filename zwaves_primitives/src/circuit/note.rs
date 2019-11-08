@@ -19,9 +19,10 @@ pub struct Note<E: JubjubEngine> {
 }
 
 
+
 pub fn note_hash<E: JubjubEngine, CS>(
     mut cs: CS,
-    note: Note,
+    note: &Note<E>,
     params: &E::Params
 ) -> Result<AllocatedNum<E>, SynthesisError>
     where CS: ConstraintSystem<E>
@@ -32,7 +33,7 @@ pub fn note_hash<E: JubjubEngine, CS>(
     total_bits.extend(note.nativeAmount.into_bits_le_limited(cs.namespace(|| "bitify nativeAmount into 64 bits"), 64)?);
     total_bits.extend(note.txid.into_bits_le_limited(cs.namespace(|| "bitify txId into 254 bits"), 254)?);
     total_bits.extend(note.owner.into_bits_le_strict(cs.namespace(|| "bitify owner"))?);
-    assert_eq!(total_bits.len()==653);
+    assert!(total_bits.len()==653);
 
     let res = pedersen_hash::pedersen_hash(
                 cs.namespace(|| "res <== pedersen_hash(total_bits)"),
@@ -41,5 +42,5 @@ pub fn note_hash<E: JubjubEngine, CS>(
                 params
             )?.get_x().clone();
 
-    Ok(res);
+    Ok(res)
 }
