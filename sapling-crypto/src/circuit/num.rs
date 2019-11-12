@@ -23,6 +23,10 @@ use super::boolean::{
     AllocatedBit
 };
 
+use std::ops::{Add, Sub};
+
+
+
 pub struct AllocatedNum<E: Engine> {
     value: Option<E::Fr>,
     variable: Variable
@@ -490,7 +494,187 @@ impl<E: Engine> Num<E> {
             lc: self.lc + &bit.lc(one, coeff)
         }
     }
+
+    pub fn assert_nonzero<CS>(
+        &self,
+        mut cs: CS
+    ) -> Result<(), SynthesisError>
+        where CS: ConstraintSystem<E>
+    {
+        let inv = cs.alloc(|| "ephemeral inverse", || {
+            let tmp = *self.value.get()?;
+
+            
+            if tmp.is_zero() {
+                Err(SynthesisError::DivisionByZero)
+            } else {
+                Ok(tmp.inverse().unwrap())
+            }
+        })?;
+
+        // Constrain a * inv = 1, which is only valid
+        // iff a has a multiplicative inverse, untrue
+        // for zero.
+        cs.enforce(
+            || "nonzero assertion constraint",
+            |lc| lc + &self.lc(E::Fr::one()),
+            |lc| lc + inv,
+            |lc| lc + CS::one()
+        );
+
+        Ok(())
+    }
 }
+
+
+impl<'a, E: Engine> Add<(E::Fr, &'a Num<E>)> for Num<E> {
+    type Output = Num<E>;
+
+    fn add(mut self, (coeff, var): (E::Fr, &'a Num<E>)) -> Num<E> {
+        self.lc = self.lc + &var.lc(coeff);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&coeff);
+                selfvalue.add_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+impl<'a, E: Engine> Sub<(E::Fr, &'a Num<E>)> for Num<E> {
+    type Output = Num<E>;
+
+    fn sub(mut self, (coeff, var): (E::Fr, &'a Num<E>)) -> Num<E> {
+        self.lc = self.lc - &var.lc(coeff);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&coeff);
+                selfvalue.sub_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+
+impl<'a, E: Engine> Add<(E::Fr, AllocatedNum<E>)> for Num<E> {
+    type Output = Num<E>;
+
+    fn add(mut self, (coeff, var): (E::Fr, AllocatedNum<E>)) -> Num<E> {
+        self.lc = self.lc + (coeff, var.variable);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&coeff);
+                selfvalue.add_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+impl<E: Engine> Sub<(E::Fr, AllocatedNum<E>)> for Num<E> {
+    type Output = Num<E>;
+
+    fn sub(mut self, (coeff, var): (E::Fr, AllocatedNum<E>)) -> Num<E> {
+        self.lc = self.lc - (coeff, var.variable);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&coeff);
+                selfvalue.sub_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+
+impl<E: Engine> Add<AllocatedNum<E>> for Num<E> {
+    type Output = Num<E>;
+
+    fn add(mut self, var: AllocatedNum<E>) -> Num<E> {
+        self.lc = self.lc + (E::Fr::one(), var.variable);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&E::Fr::one());
+                selfvalue.add_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+impl<E: Engine> Sub<AllocatedNum<E>> for Num<E> {
+    type Output = Num<E>;
+
+    fn sub(mut self, var: AllocatedNum<E>) -> Num<E> {
+        self.lc = self.lc - (E::Fr::one(), var.variable);
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(mut varvalue)) => {
+                varvalue.mul_assign(&E::Fr::one());
+                selfvalue.sub_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+
+
+impl<'a, E: Engine> Add<&'a Num<E>> for Num<E> {
+    type Output = Num<E>;
+
+    fn add(mut self, var: &'a Num<E>) -> Num<E> {
+        self.lc = self.lc + &var.lc(E::Fr::one());
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(varvalue)) => {
+                selfvalue.add_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+impl<'a, E: Engine> Sub<&'a Num<E>> for Num<E> {
+    type Output = Num<E>;
+    fn sub(mut self, var: &'a Num<E>) -> Num<E> {
+        self.lc = self.lc - &var.lc(E::Fr::one());
+        self.value = match(self.value, var.value) {
+            (Some(mut selfvalue), Some(varvalue)) => {
+                selfvalue.sub_assign(&varvalue);
+                Some(selfvalue)
+            },
+            _ => None
+        };
+        self
+    }
+}
+
+
+
+
+
 
 #[cfg(test)]
 mod test {

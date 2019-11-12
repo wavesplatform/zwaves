@@ -44,7 +44,7 @@ impl <E: JubjubEngine> Circuit<E> for MerkleProofDemo<E> {
         let root_calculated = merkle_proof::merkle_proof(
             cs.namespace(|| "image_calculated <== merkle_proof(...)"),
             &proof,
-            leaf,
+            &leaf,
             &self.params
         )?.clone();
 
