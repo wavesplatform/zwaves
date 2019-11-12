@@ -39,7 +39,6 @@ mod test {
     use base64;
     use std::ptr::eq;
 
-    // todo reuse?
     #[derive(Clone)]
     pub struct PedersenDemo<E: JubjubEngine> {
         pub params: Box<E::Params>,
@@ -78,7 +77,6 @@ mod test {
                 image: None,
                 preimage: None,
             };
-            // todo serialize proving key внутри params
             generate_random_parameters(c, rng).unwrap()
         };
 
