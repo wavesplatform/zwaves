@@ -11,11 +11,11 @@ use sapling_crypto::circuit::boolean::{AllocatedBit, Boolean};
 
 
 pub struct Note<E: JubjubEngine> {
-    assetId: AllocatedNum<E>,
-    amount: AllocatedNum<E>,
-    nativeAmount: AllocatedNum<E>,
-    txid: AllocatedNum<E>,
-    owner: AllocatedNum<E>
+    pub asset_id: AllocatedNum<E>,       // 16 bits
+    pub amount: AllocatedNum<E>,        // 64 bits
+    pub native_amount: AllocatedNum<E>,  // 64 bits
+    pub txid: AllocatedNum<E>,          // 254 bits
+    pub owner: AllocatedNum<E>          // 255 bits
 }
 
 
@@ -28,9 +28,9 @@ pub fn note_hash<E: JubjubEngine, CS>(
     where CS: ConstraintSystem<E>
 {
     let mut total_bits = vec![];
-    total_bits.extend(note.assetId.into_bits_le_limited(cs.namespace(|| "bitify assetId into 16 bits"), 16)?);
+    total_bits.extend(note.asset_id.into_bits_le_limited(cs.namespace(|| "bitify assetId into 16 bits"), 16)?);
     total_bits.extend(note.amount.into_bits_le_limited(cs.namespace(|| "bitify amount into 64 bits"), 64)?);
-    total_bits.extend(note.nativeAmount.into_bits_le_limited(cs.namespace(|| "bitify nativeAmount into 64 bits"), 64)?);
+    total_bits.extend(note.native_amount.into_bits_le_limited(cs.namespace(|| "bitify nativeAmount into 64 bits"), 64)?);
     total_bits.extend(note.txid.into_bits_le_limited(cs.namespace(|| "bitify txId into 254 bits"), 254)?);
     total_bits.extend(note.owner.into_bits_le_strict(cs.namespace(|| "bitify owner"))?);
     assert!(total_bits.len()==653);

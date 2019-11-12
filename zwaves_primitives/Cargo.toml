@@ -13,5 +13,3 @@ bellman = { version = "0.1.0", default-features = false }
 sapling-crypto = { path = "../sapling-crypto", default-features = false }
 pairing = "0.14"
 num = "0.2"
-
-

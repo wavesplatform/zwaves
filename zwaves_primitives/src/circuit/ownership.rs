@@ -38,7 +38,7 @@ pub fn from_bits_le_to_num<E: JubjubEngine, CS>(
     let mut num = Num::<E>::zero();
     let mut coeff = E::Fr::one();
 
-    for (i, bit) in bits.into_iter().enumerate() {
+    for bit in bits.into_iter() {
             num = num.add_bool_with_coeff(CS::one(), bit, coeff);
             coeff.double();
     }
@@ -52,13 +52,13 @@ pub fn from_bits_le_to_num<E: JubjubEngine, CS>(
 
 pub fn nullifier<E: JubjubEngine, CS>(
     mut cs: CS,
-    note: &AllocatedNum<E>,
+    note_hash: &AllocatedNum<E>,
     sk: &[Boolean],
     params: &E::Params
 ) -> Result<AllocatedNum<E>, SynthesisError>
     where CS: ConstraintSystem<E>
 {
-    let note = note.into_bits_le_strict(cs.namespace(|| "note bitification"))?;
+    let note_hash = note_hash.into_bits_le_strict(cs.namespace(|| "note_hash bitification"))?;
     
     let sk_repr = ecc::fixed_base_multiplication(
         cs.namespace(|| "public key computation"),
@@ -68,7 +68,7 @@ pub fn nullifier<E: JubjubEngine, CS>(
     )?.get_x().into_bits_le_strict(cs.namespace(|| "priv key repr bitification"))?;
 
     let mut nf_preimage = vec![];
-    nf_preimage.extend(note);
+    nf_preimage.extend(note_hash);
     nf_preimage.extend(sk_repr);
 
     let nf_bitrepr = blake2s::blake2s(

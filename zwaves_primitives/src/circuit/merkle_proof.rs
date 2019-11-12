@@ -37,7 +37,7 @@ pub fn compress<E: JubjubEngine, CS>(
 pub fn merkle_proof<E: JubjubEngine, CS>(
     mut cs: CS,
     proof: &[(AllocatedNum<E>, Boolean)],
-    leaf: AllocatedNum<E>,
+    leaf: &AllocatedNum<E>,
     params: &E::Params
 ) -> Result<AllocatedNum<E>, SynthesisError>
     where CS: ConstraintSystem<E>
