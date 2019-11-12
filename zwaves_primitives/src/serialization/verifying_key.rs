@@ -12,6 +12,7 @@ use sapling_crypto::jubjub::JubjubEngine;
 
 use self::bincode::Error;
 use crate::serialization::objects::*;
+use std::io;
 
 pub fn serialize(
     pvk: Bls12PreparedVerifyingKey
@@ -22,9 +23,10 @@ pub fn serialize(
 
 pub fn deserialize(
     bytes: Vec<u8>
-) -> Result<Bls12PreparedVerifyingKey, Error>
+) -> io::Result<Bls12PreparedVerifyingKey>
 {
     bincode::deserialize(bytes.as_slice())
+        .map_err(|e| io::Error::from(io::ErrorKind::InvalidData))
 }
 
 #[cfg(test)]
