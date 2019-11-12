@@ -14,6 +14,18 @@ use crate::circuit::{note, ownership, merkle_proof};
 
 
 
+pub fn deposit<E: JubjubEngine, CS>(
+    mut cs: CS,
+    in_note: note::Note<E>,
+    in_hash: AllocatedNum<E>,
+    params: &E::Params
+) -> Result<(), SynthesisError>
+    where CS: ConstraintSystem<E>
+{
+    let in_hash_cmp = note::note_hash(cs.namespace(|| "hashing input"), &in_note, params)?;
+    cs.enforce(|| "checking input hash", |lc| lc + in_hash.get_variable(), |lc| lc + CS::one(), |lc| lc + in_hash_cmp.get_variable());
+    Ok(())
+}
 
 
 pub fn transfer<E: JubjubEngine, CS>(
@@ -31,7 +43,7 @@ pub fn transfer<E: JubjubEngine, CS>(
 ) -> Result<(), SynthesisError>
     where CS: ConstraintSystem<E>
 {
-    let FEE = E::Fr::from_str("1").unwrap();
+    let fee = E::Fr::from_str("1").unwrap();
 
     let sk_bits = sk.into_bits_le_strict(cs.namespace(|| "bitify sk"))?;
     let pk = ownership::pubkey(cs.namespace(|| "pubkey compute"), &sk_bits, params)?;
@@ -99,7 +111,7 @@ pub fn transfer<E: JubjubEngine, CS>(
         || "verification of native amount sum",
         |lc| lc + in_note[0].native_amount.get_variable() + in_note[1].native_amount.get_variable(),
         |lc| lc + CS::one(),
-        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable() + (FEE, CS::one())
+        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable() + (fee, CS::one())
     );
 
 
@@ -114,3 +126,6 @@ pub fn transfer<E: JubjubEngine, CS>(
     
     Ok(())
 }
+
+
+
