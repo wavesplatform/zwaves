@@ -174,6 +174,9 @@ fn cmp_slices<T: std::cmp::Eq>(a: &[T], b: &[T]) -> bool {
     (a.len()==b.len()) && (0..a.len()).fold(true, |acc, i| acc && a[i]==b[i])
 }
 
+
+
+
 #[test]
 fn test_update_merkle_proof() {
     let hasher = PedersenHasherBls12::default();

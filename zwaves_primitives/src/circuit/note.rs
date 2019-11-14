@@ -1,12 +1,8 @@
+use bellman::{SynthesisError, ConstraintSystem};
 
-use pairing::{Engine, Field, PrimeField, PrimeFieldRepr, BitIterator};
-
-use bellman::{SynthesisError, ConstraintSystem, LinearCombination, Variable};
-
-use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
+use sapling_crypto::jubjub::{JubjubEngine};
 use sapling_crypto::circuit::{pedersen_hash};
-use sapling_crypto::circuit::num::{AllocatedNum, Num};
-use sapling_crypto::circuit::boolean::{AllocatedBit, Boolean};
+use sapling_crypto::circuit::num::{AllocatedNum};
 
 use crate::circuit::bitify::from_bits_le_to_num_limited;
 

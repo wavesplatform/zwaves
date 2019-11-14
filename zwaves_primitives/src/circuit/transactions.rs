@@ -1,13 +1,12 @@
 
-use pairing::{Engine, Field, PrimeField, PrimeFieldRepr, BitIterator};
+use pairing::{PrimeField};
 
-use bellman::{SynthesisError, ConstraintSystem, LinearCombination, Variable};
+use bellman::{SynthesisError, ConstraintSystem};
 
-use sapling_crypto::jubjub::{FixedGenerators, JubjubEngine, JubjubParams, JubjubBls12, edwards, PrimeOrder};
-use sapling_crypto::circuit::{pedersen_hash, ecc, blake2s};
+use sapling_crypto::jubjub::{JubjubEngine};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
-use sapling_crypto::circuit::boolean::{AllocatedBit, Boolean};
-use sapling_crypto::constants;
+use sapling_crypto::circuit::boolean::{Boolean};
+
 
 
 use crate::circuit::{note, ownership, merkle_proof};
@@ -122,7 +121,7 @@ pub fn transfer<E: JubjubEngine, CS>(
         |lc| lc 
     );
 
-    (Num::zero() + in_hash[0].clone() - in_hash[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"));
+    (Num::zero() + in_hash[0].clone() - in_hash[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"))?;
     
     Ok(())
 }
