@@ -10,7 +10,7 @@ use std::io;
 use crate::serialization::objects::Bls12Fr;
 
 pub fn serialize(
-    inputs: &[Fr]
+    inputs: Vec<Fr>
 ) -> Vec<u8>
 {
     let frs: Vec<Bls12Fr> = inputs.iter().map(|f| Bls12Fr::from_bls12(*f)).collect();
