@@ -10,7 +10,7 @@ pub struct Note<E: JubjubEngine> {
     pub asset_id: AllocatedNum<E>,       // 64 bits
     pub amount: AllocatedNum<E>,        // 64 bits
     pub native_amount: AllocatedNum<E>,  // 64 bits
-    pub txid: AllocatedNum<E>,          // 254 bits
+    pub txid: AllocatedNum<E>,          // 255 bits
     pub owner: AllocatedNum<E>          // 255 bits
 }
 
@@ -42,9 +42,9 @@ pub fn note_hash<E: JubjubEngine, CS>(
     total_bits.extend(note.asset_id.into_bits_le_limited(cs.namespace(|| "bitify assetId into 64 bits"), 64)?);
     total_bits.extend(note.amount.into_bits_le_limited(cs.namespace(|| "bitify amount into 64 bits"), 64)?);
     total_bits.extend(note.native_amount.into_bits_le_limited(cs.namespace(|| "bitify nativeAmount into 64 bits"), 64)?);
-    total_bits.extend(note.txid.into_bits_le_limited(cs.namespace(|| "bitify txId into 254 bits"), 254)?);
+    total_bits.extend(note.txid.into_bits_le_strict(cs.namespace(|| "bitify txId"))?);
     total_bits.extend(note.owner.into_bits_le_strict(cs.namespace(|| "bitify owner"))?);
-    assert!(total_bits.len()==701);
+    assert!(total_bits.len()==702);
 
     let res = pedersen_hash::pedersen_hash(
                 cs.namespace(|| "res <== pedersen_hash(total_bits)"),
