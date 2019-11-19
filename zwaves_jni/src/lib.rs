@@ -1,9 +1,14 @@
+extern crate bincode;
+
 use jni::JNIEnv;
 use jni::objects::{JClass};
 use jni::sys::{jboolean, jbyteArray, jlong};
 use std::mem;
 
-use zwaves_primitives::serialization::verifying_key;
+use zwaves_primitives::serialization::{verifying_key, proof, inputs};
+use bellman::groth16::verify_proof;
+use pairing::bls12_381::Fr;
+use zwaves_primitives::serialization::objects::Bls12Fr;
 
 
 fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
@@ -33,14 +38,16 @@ pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
     let inputs = parse_jni_bytes(&env, jinputs);
 
     let vk = match verifying_key::deserialize(vk) { Ok(val) => val, Err(_) => return 0u8 };
+    let proof = match proof::deserialize(proof) { Ok(val) => val, Err(_) => return 0u8 };
+    let inputs: Vec<Fr> = match inputs::deserialize(inputs) { Ok(val) => val, Err(_) => return 0u8 };
 
-    // TODO
-    // implement deserialize for proof and inputs. return result of bellman groth16 verify function
-    //
-    // add check/assert for length of IC vector and inputs IC.len() == inputs.len()+1
+    // todo add check/assert for length of IC vector and inputs IC.len() == inputs.len()+1
 
-
-    0u8
+    verify_proof(
+        &vk,
+        &proof,
+        inputs.as_slice()
+    ).unwrap().into()
 }
 
 

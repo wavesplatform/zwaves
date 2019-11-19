@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use bellman::groth16::{VerifyingKey, PreparedVerifyingKey};
 use pairing::bls12_381::Bls12;
 use pairing::{Engine, CurveAffine};
+use bellman::groth16::Proof;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Fq12 {
@@ -112,7 +113,7 @@ pub struct Bls12PreparedVerifyingKey {
 }
 
 impl Bls12PreparedVerifyingKey {
-    pub fn from_bls12(
+    pub fn from_groth16(
         vk: VerifyingKey<Bls12>
     ) -> Bls12PreparedVerifyingKey {
         let mut gamma = vk.gamma_g2;
@@ -151,4 +152,20 @@ pub struct OpenPreparedVerifyingKey {
     neg_delta_g2: G2Prepared,
     /// Copy of IC from `VerifiyingKey`.
     ic: Vec<G1Affine>
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub struct Bls12Fr(pub [u64; 4]);
+
+impl Bls12Fr {
+    pub fn from_bls12(g1: pairing::bls12_381::Fr) -> Bls12Fr {
+        unsafe {
+            std::mem::transmute(g1)
+        }
+    }
+    pub fn to_bls12(g1: Bls12Fr) -> pairing::bls12_381::Fr {
+        unsafe {
+            std::mem::transmute(g1)
+        }
+    }
 }
