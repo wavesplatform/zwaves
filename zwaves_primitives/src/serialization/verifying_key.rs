@@ -15,7 +15,7 @@ use crate::serialization::objects::*;
 use std::io;
 
 pub fn serialize(
-    vk: VerifyingKey<Bls12>
+    vk: &VerifyingKey<Bls12>
 ) -> Vec<u8>
 {
     bincode::serialize(&Bls12PreparedVerifyingKey::from_groth16(vk)).unwrap()
@@ -83,7 +83,7 @@ mod test {
         };
 
         // Prepare the verification key (for proof verification)
-        let r = serialize(params.vk);
+        let r = serialize(&params.vk);
 
 //        println!("{}", base64::encode(r.as_slice()));
 

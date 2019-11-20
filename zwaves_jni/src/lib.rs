@@ -53,12 +53,11 @@ pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
 
 
 #[no_mangle]
-pub extern "system" fn Java_Bls12PedersenMerkleTree_AddItem(env: JNIEnv,
+pub extern "system" fn Java_Bls12PedersenMerkleTree_addItem(env: JNIEnv,
                                              class: JClass,
                                              sibling: jbyteArray,
                                              index: jlong,
-                                             leaf: jbyteArray,
-                                             result: jbyteArray)
+                                             leaf: jbyteArray)
                                              -> jbyteArray {
 
     let sibling = parse_jni_bytes(&env, sibling);
@@ -76,3 +75,9 @@ pub extern "system" fn Java_Bls12PedersenMerkleTree_AddItem(env: JNIEnv,
     env.byte_array_from_slice(serialized.as_slice()).unwrap()
 }
 
+#[cfg(test)]
+mod tests {
+    // todo add tests
+    #[test]
+    fn it_works() {}
+}

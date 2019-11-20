@@ -8,7 +8,7 @@ use std::io;
 use pairing::bls12_381::Bls12;
 
 pub fn serialize(
-    p: Proof<Bls12>
+    p: &Proof<Bls12>
 ) -> Vec<u8>
 {
     let mut v = vec![];

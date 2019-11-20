@@ -114,7 +114,7 @@ pub struct Bls12PreparedVerifyingKey {
 
 impl Bls12PreparedVerifyingKey {
     pub fn from_groth16(
-        vk: VerifyingKey<Bls12>
+        vk: &VerifyingKey<Bls12>
     ) -> Bls12PreparedVerifyingKey {
         let mut gamma = vk.gamma_g2;
         gamma.negate();
