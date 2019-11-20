@@ -70,7 +70,7 @@ pub extern "system" fn Java_Bls12PedersenMerkleTree_addItem(env: JNIEnv,
     let hasher = PedersenHasherBls12::default();
 
     let proof = hasher.update_merkle_proof(sibling.as_slice(), index as u64, leaf.as_slice());
-    let serialized = frs::serialize(proof);
+    let serialized = frs::serialize(&proof);
 
     env.byte_array_from_slice(serialized.as_slice()).unwrap()
 }

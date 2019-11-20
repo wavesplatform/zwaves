@@ -1,5 +1,6 @@
 java_run: lib
-	javac Groth16.java && java -ea -Djava.library.path=../../target/release/ Groth16
+	javac Groth16.java && java -ea -Djava.library.path=../../target/release/ Groth16 && \
+	    javac Bls12PedersenMerkleTree.java && java -ea -Djava.library.path=../../target/release/ Bls12PedersenMerkleTree
 
 .PHONY: lib
 
