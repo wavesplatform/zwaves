@@ -1,5 +1,3 @@
-extern crate test;
-
 use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
@@ -54,7 +52,6 @@ impl <E: JubjubEngine> Circuit<E> for CompressDemo<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::Bencher;
     use crate::hasher::PedersenHasherBls12;
     use sapling_crypto::circuit::test::TestConstraintSystem;
 
