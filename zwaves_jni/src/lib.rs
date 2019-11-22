@@ -38,9 +38,6 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_Groth16_verify(env: JNIEnv,
     let proof = parse_jni_bytes(&env, jproof);
     let inputs = parse_jni_bytes(&env, jinputs);
 
-    let expected_inputs = vk.len() / 48 - 15;
-    let inputs_count = inputs.len() / 32;
-
     let vk = match verifying_key::deserialize(vk) { Ok(val) => val, Err(_) => return 0u8 };
     let proof = match proof::deserialize(proof) { Ok(val) => val, Err(_) => return 0u8 };
     let inputs: Vec<Fr> = match frs::deserialize(inputs) { Ok(val) => val, Err(_) => return 0u8 };
