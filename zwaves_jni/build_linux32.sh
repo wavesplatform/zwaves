@@ -1,1 +1,1 @@
-cargo --target=i686-unknown-linux-gnu --release
+cargo build --target=i686-unknown-linux-gnu --release

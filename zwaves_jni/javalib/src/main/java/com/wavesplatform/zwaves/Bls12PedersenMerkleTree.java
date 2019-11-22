@@ -1,4 +1,6 @@
-package com.wavesplatfrom.zwaves_jni;
+package com.wavesplatform.zwaves;
+
+import org.fusesource.hawtjni.runtime.Library;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -7,7 +9,7 @@ class Bls12PedersenMerkleTree {
     private static native byte[] addItem(byte[] sibling, long index, byte[] leaf);
 
     static {
-        System.loadLibrary("zwaves_jni");
+        new JNILibrary("zwaves_jni", Bls12PedersenMerkleTree.class).load();
     }
 
     public static void main(String[] args) {

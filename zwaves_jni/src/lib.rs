@@ -11,7 +11,6 @@ use pairing::bls12_381::{Fr, FrRepr};
 use zwaves_primitives::serialization::objects::Bls12Fr;
 use zwaves_primitives::hasher::PedersenHasherBls12;
 use jni::{objects::JObject, objects::JValue};
-use std::intrinsics::assume;
 
 fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
     let v_len = env.get_array_length(jv).unwrap() as usize;
@@ -28,7 +27,7 @@ fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
 }
 
 #[no_mangle]
-pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
+pub extern "system" fn Java_com_wavesplatform_zwaves_Groth16_verify(env: JNIEnv,
                                              class: JClass,
                                              jvk: jbyteArray,
                                              jproof: jbyteArray,
@@ -42,9 +41,9 @@ pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
     let expected_inputs = vk.len() / 48 - 15;
     let inputs_count = inputs.len() / 32;
 
-    assert_eq!(vk.len() % 48, 0);
-    assert_eq!(inputs.len() % 32, 0);
-    assert_eq!(expected_inputs, inputs_count);
+//    assert_eq!(vk.len() % 48, 0);
+//    assert_eq!(inputs.len() % 32, 0);
+//    assert_eq!(expected_inputs, inputs_count);
 
     let vk = match verifying_key::deserialize(vk) { Ok(val) => val, Err(_) => return 0u8 };
     let proof = match proof::deserialize(proof) { Ok(val) => val, Err(_) => return 0u8 };
@@ -59,7 +58,7 @@ pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
 
 
 #[no_mangle]
-pub extern "system" fn Java_Bls12PedersenMerkleTree_addItem(env: JNIEnv,
+pub extern "system" fn Java_com_wavesplatform_zwaves_Bls12PedersenMerkleTree_addItem(env: JNIEnv,
                                              class: JClass,
                                              sibling: jbyteArray,
                                              index: jlong,

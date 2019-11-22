@@ -1,13 +1,14 @@
-package com.wavesplatfrom.zwaves_jni;
+package com.wavesplatform.zwaves;
 
-import java.io.UnsupportedEncodingException;
+import org.fusesource.hawtjni.runtime.Library;
+
 import java.util.Base64;
 
 class Groth16 {
     private static native boolean verify(byte[] vk, byte[] proof, byte[] inputs);
 
     static {
-        System.loadLibrary("zwaves_jni");
+        new JNILibrary("zwaves_jni", Groth16.class).load();
     }
 
     public static void main(String[] args) {

@@ -1,1 +1,1 @@
-cargo --target=x86_64-unknown-linux-gnu --release
+cargo build --target=x86_64-unknown-linux-gnu --release
