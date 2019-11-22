@@ -41,10 +41,6 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_Groth16_verify(env: JNIEnv,
     let expected_inputs = vk.len() / 48 - 15;
     let inputs_count = inputs.len() / 32;
 
-//    assert_eq!(vk.len() % 48, 0);
-//    assert_eq!(inputs.len() % 32, 0);
-//    assert_eq!(expected_inputs, inputs_count);
-
     let vk = match verifying_key::deserialize(vk) { Ok(val) => val, Err(_) => return 0u8 };
     let proof = match proof::deserialize(proof) { Ok(val) => val, Err(_) => return 0u8 };
     let inputs: Vec<Fr> = match frs::deserialize(inputs) { Ok(val) => val, Err(_) => return 0u8 };
@@ -53,7 +49,7 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_Groth16_verify(env: JNIEnv,
         &vk,
         &proof,
         inputs.as_slice()
-    ).unwrap().into()
+    ).or_else(0u8).into()
 }
 
 
