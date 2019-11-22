@@ -1,3 +1,5 @@
+package com.wavesplatfrom.zwaves_jni;
+
 import java.util.Arrays;
 import java.util.Base64;
 

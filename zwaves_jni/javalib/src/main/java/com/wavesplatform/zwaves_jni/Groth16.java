@@ -1,3 +1,5 @@
+package com.wavesplatfrom.zwaves_jni;
+
 import java.io.UnsupportedEncodingException;
 import java.util.Base64;
 
