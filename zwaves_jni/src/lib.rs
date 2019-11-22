@@ -11,6 +11,7 @@ use pairing::bls12_381::{Fr, FrRepr};
 use zwaves_primitives::serialization::objects::Bls12Fr;
 use zwaves_primitives::hasher::PedersenHasherBls12;
 use jni::{objects::JObject, objects::JValue};
+use std::intrinsics::assume;
 
 fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
     let v_len = env.get_array_length(jv).unwrap() as usize;
@@ -38,11 +39,16 @@ pub extern "system" fn Java_Groth16_verify(env: JNIEnv,
     let proof = parse_jni_bytes(&env, jproof);
     let inputs = parse_jni_bytes(&env, jinputs);
 
+    let expected_inputs = vk.len() / 48 - 15;
+    let inputs_count = inputs.len() / 32;
+
+    assert_eq!(vk.len() % 48, 0);
+    assert_eq!(inputs.len() % 32, 0);
+    assert_eq!(expected_inputs, inputs_count);
+
     let vk = match verifying_key::deserialize(vk) { Ok(val) => val, Err(_) => return 0u8 };
     let proof = match proof::deserialize(proof) { Ok(val) => val, Err(_) => return 0u8 };
     let inputs: Vec<Fr> = match frs::deserialize(inputs) { Ok(val) => val, Err(_) => return 0u8 };
-
-    // todo add check/assert for length of IC vector and inputs IC.len() == inputs.len()+1
 
     verify_proof(
         &vk,
