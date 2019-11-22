@@ -49,7 +49,7 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_Groth16_verify(env: JNIEnv,
         &vk,
         &proof,
         inputs.as_slice()
-    ).or_else(0u8).into()
+    ).unwrap_or(false).into()
 }
 
 
