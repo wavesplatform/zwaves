@@ -12,6 +12,12 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.fusesource.hawtjni:hawtjni-runtime:1.17'
+    compile 'org.fusesource.hawtjni:hawtjni-runtime:1.17'
     testCompile group: 'junit', name: 'junit', version: '+'
+}
+
+jar {
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
