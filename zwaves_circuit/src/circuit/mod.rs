@@ -7,34 +7,54 @@ use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::{PrimeField};
 use rand::os::OsRng;
 use rand::Rng;
+use sapling_crypto::constants;
 
-
+use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
 use zwaves_primitives::circuit::note;
 use zwaves_primitives::circuit::transactions;
 use zwaves_primitives::bit_iterator::BitIteratorLe;
+use zwaves_primitives::byte_iterator::ByteIteratorLe;
+
+use blake2_rfc::blake2s::Blake2s;
+use byteorder::{LittleEndian, WriteBytesExt};
+
 
 const MERKLE_PROOF_LEN:usize = 48;
+
 
 #[derive(Clone)]
 pub struct NoteData<E: JubjubEngine> {
     pub asset_id: E::Fr,
     pub amount: E::Fr,
     pub native_amount: E::Fr,
-    pub txid: Option<E::Fr>,
+    pub txid: E::Fr,
     pub owner: E::Fr
 }
 
 
 
-pub fn note_hash<E: JubjubEngine>(data: NoteData<E>) -> E::Fr {
+pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::Fr {
     let mut total_bits : Vec<bool> = vec![];
     total_bits.extend(BitIteratorLe::new(data.asset_id.into_repr()).take(64));
     total_bits.extend(BitIteratorLe::new(data.amount.into_repr()).take(64));
     total_bits.extend(BitIteratorLe::new(data.native_amount.into_repr()).take(64));
-    total_bits.extend(BitIteratorLe::new(data.txid.unwrap().into_repr()).take(E::Fr::NUM_BITS as usize));
+    total_bits.extend(BitIteratorLe::new(data.txid.into_repr()).take(E::Fr::NUM_BITS as usize));
     total_bits.extend(BitIteratorLe::new(data.owner.into_repr()).take(E::Fr::NUM_BITS as usize));
+    pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
+}
+
+pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr) -> E::Fr {
+    let mut h = Blake2s::with_params(32, &[], &[], constants::PRF_NF_PERSONALIZATION);
+    let mut data: Vec<_> = ByteIteratorLe::new(note_hash.into_repr()).collect();
     
+    
+
+    h.update(&data);
+
+    let hash_result = h.finalize();
+    // TODO convert hash_result into E::Fr
     E::Fr::from_str("1").unwrap()
+
 }
 
 
@@ -48,7 +68,7 @@ pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>, R: ::rand::Rng>(
                     asset_id: AllocatedNum::alloc(cs.namespace(|| "alloc asset_id"), || Ok(data.asset_id)).unwrap(),
                     amount: AllocatedNum::alloc(cs.namespace(|| "alloc amount"), || Ok(data.amount)).unwrap(),
                     native_amount: AllocatedNum::alloc(cs.namespace(|| "alloc native_amount"), || Ok(data.native_amount)).unwrap(),
-                    txid: AllocatedNum::alloc(cs.namespace(|| "alloc txid"), || Ok(data.txid.unwrap_or(rng.gen()))).unwrap(),
+                    txid: AllocatedNum::alloc(cs.namespace(|| "alloc txid"), || Ok(data.txid)).unwrap(),
                     owner: AllocatedNum::alloc(cs.namespace(|| "alloc owner"), || Ok(data.owner)).unwrap()
                 }
             },
