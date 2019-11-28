@@ -17,7 +17,7 @@ use crate::serialization::objects::*;
 use std::io;
 
 pub fn serialize(
-    p: Parameters<Bls12>
+    p: &Parameters<Bls12>
 ) -> Vec<u8>
 {
     let mut v = vec![];
@@ -87,7 +87,7 @@ mod test {
         };
 
 
-        let r = serialize(params);
+        let r = serialize(&params);
 
 //        println!("{}", base64::encode(r.as_slice()));
 

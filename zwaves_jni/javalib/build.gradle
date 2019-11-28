@@ -1,0 +1,23 @@
+plugins {
+    id "java"
+    id "idea"
+}
+
+//Grade attributes
+group 'com.wavesplatform'
+version '0.1'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.fusesource.hawtjni:hawtjni-runtime:1.17'
+    testCompile group: 'junit', name: 'junit', version: '+'
+}
+
+jar {
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
