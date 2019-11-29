@@ -15,7 +15,7 @@ use self::pairing::{Field, Engine};
 
 
 use num::Integer;
-
+use std::io;
 
 pub fn u64_to_bits_le(x:u64) -> Vec<bool> {
     let mut res = Vec::with_capacity(64);
@@ -63,27 +63,36 @@ impl<E: JubjubEngine> PedersenHasher<E> {
         .0
     }
 
-    pub fn root(&self, sibling: &[E::Fr], index:u64, leaf: E::Fr) -> E::Fr {
+    pub fn root(&self, sibling: &[E::Fr], index:u64, leaf: E::Fr) -> io::Result<E::Fr> {
         let index_bits = u64_to_bits_le(index);
         let merkle_proof_sz = sibling.len();
-        assert!(merkle_proof_sz <= self.merkle_proof_defaults.len(), "too long merkle proof");
         
+        if merkle_proof_sz > self.merkle_proof_defaults.len() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "too long merkle proof"));
+        }
+
         let mut cur = leaf;
         for i in 0..self.merkle_proof_defaults.len() {
             let (left, right) = if index_bits[i] { (sibling[i], cur) } else { (cur, sibling[i]) };
             cur = self.compress(&left, &right, Personalization::MerkleTree(i));
         }
-        cur
+        
+        Ok(cur)
     }
 
-    pub fn update_merkle_proof(&self, sibling: &[E::Fr], index: u64, leaf: &[E::Fr]) -> Vec<E::Fr> {
+    pub fn update_merkle_proof(&self, sibling: &[E::Fr], index: u64, leaf: &[E::Fr]) -> io::Result<Vec<E::Fr>> {
         let proofsz = sibling.len();
         let leafsz = leaf.len();
         let maxproofsz = self.merkle_proof_defaults.len();
         let index2 = index + leafsz as u64;
         
-        assert!(proofsz <= maxproofsz, "too long proof");
-        assert!(index2 <= u64::pow(2, proofsz as u32), "too many leaves");
+        if proofsz > maxproofsz {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "too long proof"));
+        }
+
+        if index2 > u64::pow(2, proofsz as u32) {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "too many leaves"));
+        }
 
         let mut sibling2 = Vec::with_capacity(proofsz);
 
@@ -139,7 +148,20 @@ impl<E: JubjubEngine> PedersenHasher<E> {
                 sibling2.push(if sibling2_i >= buffsz { self.merkle_proof_defaults[0] } else { buff[sibling2_i] }  );
             });
         }
-        sibling2
+        Ok(sibling2)
+    }
+
+
+    pub fn update_merkle_root(&self, root: &E::Fr, sibling: &[E::Fr], index: u64, leaf: &[E::Fr]) -> io::Result<E::Fr> {
+        let cmp_root = self.root(sibling, index, E::Fr::zero())?;
+        
+        if cmp_root != *root {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "wrong proof"));
+        }
+
+        let proof = self.update_merkle_proof(sibling, index, leaf)?;
+
+        self.root(&proof, index + (leaf.len() as u64), E::Fr::zero())
     }
 
 }
@@ -185,9 +207,9 @@ fn test_update_merkle_proof() {
     let elements2 : Vec<_> =  (0..907).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
 
     let proof_defaults = hasher.merkle_proof_defaults.clone();
-    let proof0 = hasher.update_merkle_proof(&proof_defaults, 0, &elements0);
-    let proof1 = hasher.update_merkle_proof(&proof0, elements0.len() as u64, &elements1);
-    let proof2 = hasher.update_merkle_proof(&proof_defaults, 0, &elements2);
+    let proof0 = hasher.update_merkle_proof(&proof_defaults, 0, &elements0).unwrap();
+    let proof1 = hasher.update_merkle_proof(&proof0, elements0.len() as u64, &elements1).unwrap();
+    let proof2 = hasher.update_merkle_proof(&proof_defaults, 0, &elements2).unwrap();
 
     assert!(cmp_slices(&proof1, &proof2), "Proofs must be same");
 }

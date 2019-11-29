@@ -2,7 +2,7 @@ use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
-use bellman::groth16::{Proof, generate_random_parameters, prepare_verifying_key, create_random_proof, verify_proof};
+use bellman::groth16::{Proof, generate_random_parameters, truncate_verifying_key, create_random_proof, verify_proof};
 use pairing::bls12_381::{Bls12, Fr};
 use rand::os::OsRng;
 use rand::Rng;
@@ -70,7 +70,7 @@ mod tests {
         };
 
         // Prepare the verification key (for proof verification)
-        let pvk = prepare_verifying_key(&params.vk);
+        let tvk = truncate_verifying_key(&params.vk);
 
         /*
         println!("Checking constraints...");
@@ -100,7 +100,7 @@ mod tests {
         println!("Proof time: {}ms", stopwatch.elapsed().as_millis());
 
         let result = verify_proof(
-            &pvk,
+            &tvk,
             &proof,
             &[image]
         ).unwrap();

@@ -381,16 +381,103 @@ impl<E: Engine> Parameters<E> {
     }
 }
 
-pub struct PreparedVerifyingKey<E: Engine> {
-    /// Pairing result of alpha*beta
-    alpha_g1_beta_g2: E::Fqk,
-    /// -gamma in G2
-    neg_gamma_g2: <E::G2Affine as CurveAffine>::Prepared,
-    /// -delta in G2
-    neg_delta_g2: <E::G2Affine as CurveAffine>::Prepared,
-    /// Copy of IC from `VerifiyingKey`.
-    ic: Vec<E::G1Affine>
+#[derive(Clone)]
+pub struct TruncatedVerifyingKey<E: Engine> {
+    pub alpha_g1: E::G1Affine,
+    pub beta_g2: E::G2Affine,
+    pub gamma_g2: E::G2Affine,
+    pub delta_g2: E::G2Affine,
+    pub ic: Vec<E::G1Affine>
 }
+
+
+impl<E: Engine> TruncatedVerifyingKey<E> {
+    pub fn write<W: Write>(
+        &self,
+        mut writer: W
+    ) -> io::Result<()>
+    {
+        writer.write_all(self.alpha_g1.into_compressed().as_ref())?;
+        writer.write_all(self.beta_g2.into_compressed().as_ref())?;
+        writer.write_all(self.gamma_g2.into_compressed().as_ref())?;
+        writer.write_all(self.delta_g2.into_compressed().as_ref())?;
+        for ic in &self.ic {
+            writer.write_all(ic.into_compressed().as_ref())?;
+        }
+        Ok(())
+    }
+
+    pub fn read<R: Read>(
+        mut reader: R
+    ) -> io::Result<Self>
+    {
+        let mut g1_repr = <E::G1Affine as CurveAffine>::Compressed::empty();
+        let mut g2_repr = <E::G2Affine as CurveAffine>::Compressed::empty();
+
+        reader.read_exact(g1_repr.as_mut())?;
+        let alpha_g1 = g1_repr
+                .into_affine()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| if e.is_zero() {
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                } else {
+                    Ok(e)
+                })?;
+
+        reader.read_exact(g2_repr.as_mut())?;
+        let beta_g2 = g2_repr
+                .into_affine()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| if e.is_zero() {
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                } else {
+                    Ok(e)
+                })?;
+
+        reader.read_exact(g2_repr.as_mut())?;
+        let gamma_g2 = g2_repr
+                .into_affine()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| if e.is_zero() {
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                } else {
+                    Ok(e)
+                })?;
+
+        reader.read_exact(g2_repr.as_mut())?;
+        let delta_g2 = g2_repr
+                .into_affine()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .and_then(|e| if e.is_zero() {
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                } else {
+                    Ok(e)
+                })?;
+
+        let mut ic = vec![];
+
+        while reader.read_exact(g1_repr.as_mut()).is_ok() {
+            let g1 = g1_repr
+                    .into_affine()
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                    .and_then(|e| if e.is_zero() {
+                        Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
+                    } else {
+                        Ok(e)
+                    })?;
+            ic.push(g1);
+        }
+
+        Ok(TruncatedVerifyingKey {
+            alpha_g1: alpha_g1,
+            beta_g2: beta_g2,
+            gamma_g2: gamma_g2,
+            delta_g2: delta_g2,
+            ic: ic.clone()
+        })
+    }
+}
+
 
 pub trait ParameterSource<E: Engine> {
     type G1Builder: SourceBuilder<E::G1Affine>;
@@ -544,7 +631,7 @@ mod test_with_bls12_381 {
             assert!(params == de_params);
         }
 
-        let pvk = prepare_verifying_key::<Bls12>(&params.vk);
+        let tvk = truncate_verifying_key::<Bls12>(&params.vk);
 
         for _ in 0..100 {
             let a = Fr::rand(rng);
@@ -569,8 +656,8 @@ mod test_with_bls12_381 {
             let de_proof = Proof::read(&v[..]).unwrap();
             assert!(proof == de_proof);
 
-            assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-            assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+            assert!(verify_proof(&tvk, &proof, &[c]).unwrap());
+            assert!(!verify_proof(&tvk, &proof, &[a]).unwrap());
         }
     }
 }

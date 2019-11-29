@@ -17,7 +17,7 @@ use ::{
 
 use super::{
     generate_parameters,
-    prepare_verifying_key,
+    truncate_verifying_key,
     create_proof,
     verify_proof
 };
@@ -290,7 +290,7 @@ fn test_xordemo() {
     assert_eq!(delta, params.vk.delta_g1);
     assert_eq!(delta, params.vk.delta_g2);
 
-    let pvk = prepare_verifying_key(&params.vk);
+    let tvk = truncate_verifying_key(&params.vk);
 
     let r = Fr::from_str("27134").unwrap();
     let s = Fr::from_str("17146").unwrap();
@@ -393,7 +393,7 @@ fn test_xordemo() {
     }
 
     assert!(verify_proof(
-        &pvk,
+        &tvk,
         &proof,
         &[Fr::one()]
     ).unwrap());

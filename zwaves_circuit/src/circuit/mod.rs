@@ -2,7 +2,7 @@ use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
-use bellman::groth16::{Proof, generate_random_parameters, prepare_verifying_key, create_random_proof, verify_proof};
+use bellman::groth16::{Proof, generate_random_parameters, truncate_verifying_key, create_random_proof, verify_proof};
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::{PrimeField};
 use rand::os::OsRng;

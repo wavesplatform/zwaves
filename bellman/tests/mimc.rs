@@ -30,7 +30,7 @@ use bellman::{
 use bellman::groth16::{
     Proof,
     generate_random_parameters,
-    prepare_verifying_key,
+    truncate_verifying_key,
     create_random_proof,
     verify_proof,
 };
@@ -188,8 +188,8 @@ fn test_mimc() {
         generate_random_parameters(c, rng).unwrap()
     };
 
-    // Prepare the verification key (for proof verification)
-    let pvk = prepare_verifying_key(&params.vk);
+    // truncate the verification key (for proof verification)
+    let pvk = truncate_verifying_key(&params.vk);
 
     println!("Creating proofs...");
 
