@@ -7,7 +7,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *******************************************************************************/
-package com.wavesplatform.zwaves;
+package com.wavesplatform.zwaves.bls12;
 
 import java.io.*;
 import java.lang.reflect.Method;

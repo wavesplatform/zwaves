@@ -152,7 +152,7 @@ impl<E: JubjubEngine> PedersenHasher<E> {
     }
 
 
-    pub fn update_merkle_root(&self, root: &E::Fr, sibling: &[E::Fr], index: u64, leaf: &[E::Fr]) -> io::Result<E::Fr> {
+    pub fn update_merkle_root_and_proof(&self, root: &E::Fr, sibling: &[E::Fr], index: u64, leaf: &[E::Fr]) -> io::Result<(E::Fr, Vec<E::Fr>)> {
         let cmp_root = self.root(sibling, index, E::Fr::zero())?;
         
         if cmp_root != *root {
@@ -160,8 +160,8 @@ impl<E: JubjubEngine> PedersenHasher<E> {
         }
 
         let proof = self.update_merkle_proof(sibling, index, leaf)?;
-
-        self.root(&proof, index + (leaf.len() as u64), E::Fr::zero())
+        let root = self.root(&proof, index + (leaf.len() as u64), E::Fr::zero())?;
+        Ok((root, proof))
     }
 
 }
