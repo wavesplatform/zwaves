@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 name = "zwaves_jni"
 
 [dependencies]
-bellman = { path = "../bellman", default-features = false }
+bellman = { version = "0.1.0", default-features = false }
 zwaves_primitives = { path = "../zwaves_primitives", default-features = false }
 pairing = "0.14"
 num = "0.2"

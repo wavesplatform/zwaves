@@ -7,13 +7,14 @@ use jni::objects::{JObject, JValue, JClass};
 use pairing::bls12_381::{Fr, FrRepr, Bls12};
 use pairing::{Engine, PrimeField, Field, PrimeFieldRepr};
 
-use bellman::groth16::{verify_proof, Proof, TruncatedVerifyingKey};
+use bellman::groth16::{Proof};
 
 use std::{mem, io, iter};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use zwaves_primitives::hasher::PedersenHasherBls12;
+use zwaves_primitives::verifier::{TruncatedVerifyingKey, verify_proof};
 
 
 fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {

@@ -1,4 +1,4 @@
-#![feature(test)]
+#[cfg(test)]
 pub mod test;
 
 pub mod circuit;

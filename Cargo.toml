@@ -4,8 +4,7 @@ members = [
   "zwaves_primitives",
   "zwaves_circuit",
   "zwaves_jni",
-  "sapling-crypto",
-  "bellman"
+  "sapling-crypto"
 ]
 
 [profile.release]

@@ -2,7 +2,7 @@ use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 
-use bellman::groth16::{Proof, generate_random_parameters, truncate_verifying_key, create_random_proof, verify_proof};
+use bellman::groth16::{Proof, generate_random_parameters, prepare_verifying_key, create_random_proof, verify_proof};
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::PrimeField;
 use rand::os::OsRng;
@@ -72,7 +72,7 @@ mod tests {
         
         let proof_defaults = hasher.merkle_proof_defaults.clone();
         let sibling = hasher.update_merkle_proof(&proof_defaults, 0, &elements).unwrap();
-        let root = hasher.root(&sibling, elements_len, hasher.merkle_proof_defaults[0]);
+        let root = hasher.root(&sibling, elements_len, hasher.merkle_proof_defaults[0]).unwrap();
 
         let proof : Vec<_> = (0..proof_length).map( |i| {
             (Some(sibling[i]), Some((elements_len & (1<<i))!=0))

@@ -9,7 +9,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 rand = "0.4"
-bellman = { path = "../bellman", default-features = false }
+bellman = { version = "0.1.0", default-features = false }
 sapling-crypto = { path = "../sapling-crypto", default-features = false }
 pairing = "0.14"
 num = "0.2"

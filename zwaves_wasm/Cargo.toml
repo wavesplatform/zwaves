@@ -15,7 +15,7 @@ wasm = ["web-sys"]
 [dependencies]
 wasm-bindgen = "0.2.50"
 rand = {version = "0.7.2", features=["getrandom", "wasm-bindgen"]}
-bellman = { path = "../bellman", default-features = false }
+bellman = { version = "0.1.0", default-features = false }
 sapling-crypto = { path = "../sapling-crypto", default-features = false }
 zwaves_primitives = {path = "../zwaves_primitives"}
 
