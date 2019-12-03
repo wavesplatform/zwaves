@@ -6,9 +6,7 @@ import static org.junit.Assert.*;
 import java.util.Base64;
 
 public class Groth16Test {
-    static {
-        new JNILibrary("zwaves_jni", Groth16.class).load();
-    }
+
 
     @Test
     public void test() {

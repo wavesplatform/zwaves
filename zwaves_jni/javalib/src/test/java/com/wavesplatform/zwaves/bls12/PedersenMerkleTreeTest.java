@@ -8,9 +8,6 @@ import java.util.Base64;
 import static org.junit.Assert.*;
 
 public class PedersenMerkleTreeTest {
-    static {
-        new JNILibrary("zwaves_jni", PedersenMerkleTree.class).load();
-    }
 
     @Test
     public void test() {

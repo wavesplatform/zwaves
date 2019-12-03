@@ -213,7 +213,7 @@ mod tests {
 
         let root_and_proof1_cmp = pedersen_merkle_tree_add_item(&root0, &proof0, 23, &elements1).unwrap_or(vec![]);
 
-        root_and_proof1.iter().zip(root_and_proof1_cmp.iter()).for_each(|x| println!("{:?}", x));
+    
 
         assert!(root_and_proof1.iter().zip(root_and_proof1_cmp.iter()).all( |(&a,&b)| a==b), "new root and proof should be valid");
     }
