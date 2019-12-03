@@ -3,15 +3,18 @@ use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
 use bellman::groth16::{Proof, generate_random_parameters, create_random_proof};
-use pairing::bls12_381::{Bls12, Fr};
+use pairing::bls12_381::{Bls12, Fr, FrRepr};
+use pairing::{Engine, PrimeField, Field, PrimeFieldRepr};
 use rand::os::OsRng;
 use rand::Rng;
 
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use zwaves_primitives::verifier::{truncate_verifying_key, TruncatedVerifyingKey, verify_proof};
 use zwaves_primitives::serialization::write_fr_iter;
+use zwaves_primitives::hasher;
 
 use base64::encode;
+use std::iter;
 
 
 #[derive(Clone)]
@@ -52,7 +55,7 @@ mod tests {
 
 
     #[test]
-    pub fn test_get_vectors(){
+    pub fn test_groth16_verify_get_vectors(){
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
         let rng = &mut OsRng::new().unwrap();
@@ -117,4 +120,51 @@ mod tests {
         ).unwrap();
         assert!(result, "Proof is correct");
     }
+
+    #[test]
+    fn test_update_merkle_root_and_proof_get_vectors() {
+        let hasher = PedersenHasherBls12::default();
+        let elements0 : Vec<_> =  (0..23).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
+        let elements1 : Vec<_> =  (23..46).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
+
+    
+        let proof_defaults = &hasher.merkle_proof_defaults;
+        let root_default = hasher.root(proof_defaults, 0, Fr::zero()).unwrap();
+    
+        let (root0, proof0) = hasher.update_merkle_root_and_proof(&root_default, proof_defaults, 0, &elements0).unwrap();
+        let (root1, proof1) = hasher.update_merkle_root_and_proof(&root0, &proof0, elements0.len() as u64, &elements1).unwrap();
+
+        let mut root0_c = Cursor::new(Vec::new());
+        root0.into_repr().write_be(&mut root0_c);
+        root0_c.seek(SeekFrom::Start(0)).unwrap();
+        let mut root0_b = Vec::new();
+        root0_c.read_to_end(&mut root0_b).unwrap();
+        println!("root0: {}", base64::encode(&root0_b));
+
+
+        let mut proof0_c = Cursor::new(Vec::new());
+        proof0.iter().for_each(|e| e.into_repr().write_be(&mut proof0_c).unwrap());
+        proof0_c.seek(SeekFrom::Start(0)).unwrap();
+        let mut proof0_b = Vec::new();
+        proof0_c.read_to_end(&mut proof0_b).unwrap();
+        println!("proof0: {}", base64::encode(&proof0_b));
+
+        let mut elements1_c = Cursor::new(Vec::new());
+        elements1.iter().for_each(|e| e.into_repr().write_be(&mut elements1_c).unwrap());
+        elements1_c.seek(SeekFrom::Start(0)).unwrap();
+        let mut elements1_b = Vec::new();
+        elements1_c.read_to_end(&mut elements1_b).unwrap();
+        println!("elements1: {}", base64::encode(&elements1_b));
+
+
+        let mut root_and_proof1_c = Cursor::new(Vec::new());
+        iter::once(&root1).chain(proof1.iter()).for_each(|e| e.into_repr().write_be(&mut root_and_proof1_c).unwrap());
+        root_and_proof1_c.seek(SeekFrom::Start(0)).unwrap();
+        let mut root_and_proof1_b = Vec::new();
+        root_and_proof1_c.read_to_end(&mut root_and_proof1_b).unwrap();
+        println!("root_and_proof1: {}", base64::encode(&root_and_proof1_b));
+        
+    }
+    
+
 }

@@ -214,5 +214,22 @@ fn test_update_merkle_proof() {
     assert!(cmp_slices(&proof1, &proof2), "Proofs must be same");
 }
 
+#[test]
+fn test_update_merkle_root_and_proof() {
+    let hasher = PedersenHasherBls12::default();
+    let elements0 : Vec<_> =  (0..23).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
+    let elements1 : Vec<_> =  (23..907).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
+    let elements2 : Vec<_> =  (0..907).map(|i| hasher.hash(Fr::from_repr(FrRepr([i as u64, 0u64, 0u64, 0u64])).unwrap())).collect();
+
+    let proof_defaults = &hasher.merkle_proof_defaults;
+    let root_default = hasher.root(proof_defaults, 0, Fr::zero()).unwrap();
+
+    let (root0, proof0) = hasher.update_merkle_root_and_proof(&root_default, proof_defaults, 0, &elements0).unwrap();
+    let (root1, proof1) = hasher.update_merkle_root_and_proof(&root0, &proof0, elements0.len() as u64, &elements1).unwrap();
+    let (root2, proof2) = hasher.update_merkle_root_and_proof(&root_default, proof_defaults, 0, &elements2).unwrap();
+
+    assert!(cmp_slices(&proof1, &proof2), "Proofs must be same");
+    assert!(root1==root2, "Roots must be same");
+}
 
 
