@@ -14,6 +14,7 @@ use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use zwaves_primitives::hasher::PedersenHasherBls12;
+use zwaves_primitives::serialization::{read_fr_repr_be, read_fr_vec, write_fr_iter};
 use zwaves_primitives::verifier::{TruncatedVerifyingKey, verify_proof};
 
 
@@ -33,35 +34,7 @@ fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
 
 
 
-fn read_fr_repr_be<Fr:PrimeField>(data: &[u8]) -> io::Result<Fr::Repr> {
-    let mut fr_repr = Fr::zero().into_repr();
 
-    match fr_repr.read_be(data) {
-        Err(e) => return Err(e),
-        _ => {}
-    }
-    Ok(fr_repr)
-}
-
-fn read_fr_vec<Fr:PrimeField>(data: &[u8]) -> io::Result<Vec<Fr>> {
-    let mut inputs = vec![];
-    
-    let mut offset = 0;
-    let fr_repr_sz = mem::size_of::<Fr::Repr>();
-
-    loop {
-        let fr_repr =  match read_fr_repr_be::<Fr>(&data[offset..]) {
-            Ok(x) => x,
-            _ => break
-        };
-
-        offset+=fr_repr_sz;
-        let fr = Fr::from_repr(fr_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, "not in field"))?;
-        inputs.push(fr);
-    }
-
-    Ok(inputs)
-}
 
 fn groth16_verify(vk:&[u8], proof:&[u8], inputs:&[u8]) -> io::Result<u8> {
     
