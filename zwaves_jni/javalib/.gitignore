@@ -46,3 +46,6 @@ sampleDB*
 # jenv
 .java-version
 
+libzwaves_jni.so
+libzwaves_jni.dylib
+zwaves_jni.dll
