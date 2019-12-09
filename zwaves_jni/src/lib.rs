@@ -1,5 +1,8 @@
+#![feature(test)]
+extern crate test;
+
 #[cfg(test)]
-pub mod test;
+pub mod tests;
 
 use jni::JNIEnv;
 use jni::sys::{jboolean, jbyteArray, jlong};
@@ -148,9 +151,11 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_bls12_PedersenMerkleTree_ad
 }
 
 #[cfg(test)]
-mod tests {
+mod local_tests {
     use base64::decode;
     use super::*;
+
+
 
     #[test]
     fn test_groth16_verify_binaries_ok() {
@@ -167,6 +172,58 @@ mod tests {
         let res = groth16_verify(&vk, &proof, &inputs).unwrap_or(0) != 0;
         assert!(res, "groth16_verify should be true");
     }
+
+    
+    #[test]
+    fn test_groth16_verify_binaries_ok2() {
+
+        let vk = "rc+0IGQqLiuCMZ7EEYGJHDlu4y+pIyHD2LKLTIKp86ciT1JsaVhFGXWBtmMxu7kogA/mHvOT2tnI7FAJneHwEsV0+ZVBM6YNDSOfx4FAzsF7k1iiTtx07paTDklFRaTFB96CaO2BantTRC5v8evAFQSPW5fcyioT/9G7/ypUSZSJDtsc6YMRoAjJ8pLwAtpPq1R/9vP1iIQH3m4eIkcl+HHl1OC50FFI7tT1tjts/j9mLcUpHjHoXoUj8HDziS+VD4dEf3axChI8eKVBixqSXi5jkTO6KPSMGHNxeFoQr0YgnU8ayquiYx56FVJLwBOhgi5s851nvXjylzjGbfMG66bcQyhZrozpFKmPGI485pzeb9c5P4o6J2PyTQYNFuSVCQsjqoOVip6vi/Ijaev7ZP67I6tVtFJ90ZS2XoHZzu9dadxLaA2AIU9gWCO1o1C2k6Nbo1xlF9CCAr32n7qcSoDbGp2n1Pnuz0vkHWA1v9PpMznEFqnLLOpL/qB9TpmPuaybOLnKipRl503ztmm0Ns5CKE4ByL/QTUHsDXYwRDtcHbctUJpCTvYtxfG6G3afqTRem6scwhA94SX58taRTKbSjvDwBEwNNQAjcDU+391AJx3hVxhiVM7aPn/Do4hjpHDakpFZgC98lJIbnvNhppa10d7vzSPp0mgOvk9uJs1IsEZK0XHCK7EJvSg+eCUllT5LaH1cs1DKctbUltGC56jblSIH8/5NuztMjXdBgGttmxFcZ3/+Re7WJDAIcJMygG831VNSGSyt1CealjIGRcTIxE51sZGKa1wduOoXAcY4FmeVYbbKA/Vbace32lcWoa5dqWIfVvEndnbKnIHLfm9y2ENPKm9zdWqDU9YyaOhKcYvOlOWQEWpH/UXkMiRMhhskZk8yISC6vRWTomcCuenBf1WwFWEHzgfdV5EdXNv1MJTKZzfx9/WQJJL/dyJAl6al/y1qrPPh2CNRoMy0NYMWqUnWaganghcly0a/5swmDujqE3gp3drco9g5XWBypGS0gmgBQFXM3vZqnKDvJ6JZtdKXKqTUGaJmF1WeYamnlS1lHuTcLY6QX/ofZnVeg0MFx87TO7rQqd7rKAXWFqZKNGaposM4EGzzTWK3CYkDJK7Ys0XPItD3I5ZY9wrgmVcLPdlIs6FFR7IjKmZfQb4M+3OzPJLWJvyLES4b/RimPytZSc8pH0viC1WoBFEx";
+        let proof = "oXjJNueUp7UGQYnq3YjHlWb748GjVPrK8LcF7tck/XPoJjFzo0tYTlUDdVXiRWKIop1tnwRAsG2afnqPwUKCW1JYwEuwUq9VnbOe/Vt5U52D6w8QFgySr61qkD8C0lW8FD5D533M0fVJLAWBXzcUILKg8PZ4whWn3yJ39n49Qi+IUcirLKozOAI9V2Gn+PmaqASKEkIP6yR3mYvtAP3xWQkPmvCI8WT4wOKtHe7rF2C3A+YwZHLxU97D1spPDbmJ";
+        let inputs = "VHBLGMfpBub2ZghlUB4IDKdJ4l9DUoo7bsJB//ngDohNiTU0IZXQXJ07syfSjg82rXpRIBb063BFT2K9pdCb0VxdU2I9ZyxquGGRMKgTLKKmjzWNFun94EBi4SlrLnr9B255OqYTBIZxTnKu1/cggZbWn0K0w1OpVCT7cL60Mnw9gKG+I0JvxOLSxKSkBjtIfE3OrbxMdeGArsbpcF5tzT3mwNHWspV/htYpynpGfrojBPtXhsB7So8q5ZTTynDVZmlQcIHmAn+/S8pSHvg34yV43NgD2wEJ6EC5tAw9KCw74uDHmWdWJLlxkZQIPytcupNQI44EG8fEF7t40dJIZQseym9tzkUB7QbfmByGDezltY5+dINbvP54x/Zif3CyMEkRjjo5kosSMa+0JYhxrq9iq5IQZXUaeA4B4IuvRNc5M9MJDbk7pVeWp39V/j7ho1zdDcOAsCvzb9UhH+Wx/w==";
+
+        let vk = decode(vk).unwrap();
+        let proof = decode(proof).unwrap();
+        let inputs = decode(inputs).unwrap();
+
+
+        let res = groth16_verify(&vk, &proof, &inputs).unwrap_or(0) != 0;
+        assert!(res, "groth16_verify should be true");
+    }
+
+    #[test]
+    fn test_groth16_verify_binaries_ok3() {
+
+        let vk = "s6Fw3I8k6rDlE1BJcs833aBONDLHtvx2AWD92/r2qWWc05SGxm+beILW+G2KrB4QpmeojJCTEDqiFAZ4tCkLGppmaiBNRunPepzNtXY+1TPiqRsDdpHP86U7lgng2OAEADUDAFAVbNLRMNzYHbDf7LRppGh2xiQILqHz0OqLU9dcS9vuNQVuVYIQqcUGoObYkPiXh4gEjeojZ/ZHYzBgRMzlqI2cyNPR1uFYHYBgrUtOcOoIueQqyvgii9NynelqEJHSYXFkhefEbegIXinjA9lHKkFuhkHRPW1lqIU7uMofmLTOEON7XyjTZf7HvJ0IoNU368JBygoz97xgjmTGe2R+F2M+tQjnA0qSNV4ve9/RyOmUZLIbvHPnC+HUCFnwGFuJF0LLkNL+LizhD+nRa6uBFgOGNKJo88XwRIjAC+KZOCP3nrxgegS4m/bRxmG6o6a03AlETTySuenJqp79DS7pTiBLmmKi0qCnOMyeiC5N25n4wKkCPDqUxeDfYBlDlRiGpRh8Lt/jHyJAAMdaUQK/bbla1wfBBSkq+WIqgzQRpFAOlP20GgbLlYitIeEpigMdNI7yna6gF/H/yj5AyoyctmX0JaRGs0JMbJXH5LSQjrnds41/8O/EoJzIVvGJt8MBfhtjM8XqRymtkjvo0c7N5PHw3mcVcJqQ5+GMytQ/IhIi7SrIqlesrpbWkG0koDcKMhIZM/EqXWQQApIp2B0w0LyJOjeRe3vg6R08QOJmc/2OiquIX2+3wo9wgmwzk6XX2gc8LF8qWr4m7Kk6qt2OIk2tLZK+2FR7l1+AkGEJ9rAh3KZ01rmTRRQk7BdXkNtxldeVfqs5CH7Tik8jGPEzpq06Aqh56GeG8+JZ+0MQpnidx2WwcNP/RwNQ2K0eiWrcvf2b8Zwq7fan2EmPIckcsQ4TDtcUYlZ/jtv8oQ8AbYVbjxCsb2+ANMbsiGfKojIKcDUqtiWCKA0A15oYvJ1+ypYRFgVFV4W9J0hTDNOAULv4Ir5pjtESEnbipEYilmSIuVIxoxBAQfGdYLfn7ktLcwpTBglFWQD40MGpY52ZWhOuQdGAhb2hiYHY8LLaqEpQKPlE6XjDbMkF32NoyNWLaJaankwoP0dKhxPec1cUp8DmzBDEzA/r7ct6e1TkkjFUNVdbmrPjaH4oywuOYrBjJl4LqS6sn0YtDMfXnDMxbj9hHjyiCvvJzCZoQF4Usz+nxwys9J/ltRjeGofKgQoYD8c6vyib5Zep3swXIP96yRJ4EY9VLx4ZHrKiXmbBkoOsZdZuOScTRqxr2eWXlRZsydm//A7HROZx0LYll/UbASK4RIz5biDG2Z1AIg2bjfCCXX069KgUsnTsrwVlx3XhF/FFje42YP447PvcnEx8vWaXYMIo9nABOOKdZlOipw8mq+/bn1H53vUUYxmGghiJ+cCSNMPLrX8DLKYOL9x5dDcpt2MJWZ7mjQ+lTtUFoNvV8lzQXncyobLubjPaKeGlLA2vPRnmqQSYNZqp+/J6Z7dtIt1btoW30jt0OM8D";
+        let proof = "tKrzmvZK5lnOj3xbe/3x1Yu8aqPxMnPOawFPM0JWDBH+WDFKBUwlToXaefpY7gkxg14eUONY5rJI3dj6abI7b6gZtgyVP7Xr1HXtMpDX9i5xs4kgXxCcCZ+1ZNox311LEJLQoctW/Qi042T0t1FQ9ZSWUlyZkSEb/l8fC8akq2oEDIFICs+PmuzGdgDuuHndlV09I+bY5hgNhRV1UvteD3W8m7Q0vGO/W/milDXu6u65gch97W2Wwwjj0Ags+j5l";
+        let inputs = "GCddXmFUIRlXriGVQ1A3t6cwg0w4lmWXGqI+X3mMbmNiO51k5CvrWHd5GOwVb5eb5Imcjj55Q6oKQptRSZqe9TY//vzQ+VNG5bkLiCpTgphYwzXH/GFowK7AjCvy8YhQbFQ1V8sPbpjH8rYlxveMdHW41maMYoW6sJuHpoz1RnNkAyGKRQ0sRUD1n/ohaE/LVLnB4F3cN3cea3MdTmPgPGIWCE5a6oeQRGI/RpKH6kY2BMeuta4jrizVRrcIeFvtYu+j4v31CSmSxiCTHx2SqF/QcSJGnkkdSj9eIZkiO+VjqFi39hRbsfsMYCDUZ8P8QhrYWb+6cFErJ/1PLPjOKFkgBG5pxLo5ifZGjTL5kbtBD6kKritHOHRuANqarO40IiS1yffpaJVrXyJDy0rn2K79XQhyO85tWfK6oT1Q4GwYgxGI9rYyfuKaqrYUbIWPoDCwc9lmSYF9klmjn7LyNDymCC9mmzCiTz4ggzlrR/6DhmJGoDon3wZ5N0jhuCvBPog54HohNv84S1zZLtzEbmlRawFa/q1sl/h5Fl+9KQYyN3SWGN0YIOd3eqtu80UBL8YkOZs8BL6Fgb6KXGULo1VkAHR9q+RSurwCvMqpk/nPzFyZ4MviHxSAmSOUNN2cXzYONrxHZYXGRid1/YxUSukQ57OtwTXsUVIeYG/HTUI=";
+        let inputs = "P/////////////////////////////////////////8//////////////////////////////////////////z//////////////////////////////////////////P/////////////////////////////////////////8//////////////////////////////////////////z//////////////////////////////////////////P/////////////////////////////////////////8//////////////////////////////////////////z//////////////////////////////////////////P/////////////////////////////////////////8//////////////////////////////////////////z//////////////////////////////////////////P/////////////////////////////////////////8//////////////////////////////////////////z//////////////////////////////////////////P/////////////////////////////////////////8=";
+
+        let vk = decode(vk).unwrap();
+        let proof = decode(proof).unwrap();
+        let inputs = decode(inputs).unwrap();
+
+
+        let res = groth16_verify(&vk, &proof, &inputs).unwrap_or(0) != 0;
+        //assert!(res, "groth16_verify should be true");
+    }
+
+
+    #[bench]
+    fn bench_pairing(b: &mut ::test::Bencher) {
+        b.iter(|| test_groth16_verify_binaries_ok());
+    }
+
+
+    #[bench]
+    fn bench_pairing2(b: &mut ::test::Bencher) {
+        b.iter(|| test_groth16_verify_binaries_ok2());
+    }
+
+    #[bench]
+    fn bench_pairing3(b: &mut ::test::Bencher) {
+        b.iter(|| test_groth16_verify_binaries_ok3());
+    }
+
 
     #[test]
     fn test_groth16_verify_binaries_notok() {

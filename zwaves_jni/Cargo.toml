@@ -9,9 +9,9 @@ crate-type = ["cdylib"]
 name = "zwaves_jni"
 
 [dependencies]
-bellman = { version = "0.1.0", default-features = false }
-zwaves_primitives = { path = "../zwaves_primitives", default-features = false }
-sapling-crypto = { path = "../sapling-crypto", default-features = false }
+bellman = { version = "0.1.0"}
+zwaves_primitives = { path = "../zwaves_primitives"}
+sapling-crypto = { path = "../sapling-crypto"}
 pairing = "0.14"
 num = "0.2"
 serde = { version = "1.0", features = ["derive"] }

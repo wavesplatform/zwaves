@@ -3,6 +3,8 @@ use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
 use bellman::groth16::{Proof, generate_random_parameters, create_random_proof};
+use bellman::LinearCombination;
+
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::{Engine, PrimeField, Field, PrimeFieldRepr};
 use rand::os::OsRng;
@@ -21,6 +23,7 @@ use std::iter;
 pub struct PedersenDemo<E: JubjubEngine> {
     pub params: Box<E::Params>,
     pub image: Option<E::Fr>,
+    pub data: Vec<Option<E::Fr>>,
     pub preimage: Option<E::Fr>
 }
 
@@ -40,7 +43,20 @@ impl <E: JubjubEngine> Circuit<E> for PedersenDemo<E> {
             &preimage_bits,
             &self.params
         )?.get_x().clone();
+
+        let mut data_sum = LinearCombination::<E>::zero();
+    
+    
+
+        let data_item : Vec<_> = self.data.into_iter().enumerate().map(|(i, e)| {
+            let n = AllocatedNum::alloc(cs.namespace(|| format!("data_item[{}]", i)), || e.ok_or(SynthesisError::AssignmentMissing)).unwrap();
+            n.inputize(cs.namespace(||  format!("data_item[{}] inputize", i)));
+            data_sum = data_sum.clone() + (E::Fr::one(), n.get_variable());
+            n
+        }).collect();
+
         cs.enforce(|| "image_calculated === image", |lc| lc + image.get_variable(), |lc| lc + CS::one(), |lc| lc + image_calculated.get_variable());
+        cs.enforce(|| "data sum equals zero", |lc| lc, |lc| lc, |lc| lc + &data_sum);
         Ok(())
     }
 }
@@ -60,6 +76,18 @@ mod tests {
         // `OsRng` (for example) in production software.
         let rng = &mut OsRng::new().unwrap();
 
+        let mut sum = Fr::zero();
+        let mut data :Vec<Fr> = (0..15).into_iter().map(|_| {
+            let n = rng.gen();
+            sum.add_assign(&n);
+            n
+        }).collect();
+
+        data[14].sub_assign(&sum);
+
+        
+
+
         let preimage = rng.gen();
         let hasher = PedersenHasherBls12::default();
         let image = hasher.hash(preimage);
@@ -72,6 +100,7 @@ mod tests {
             let c = PedersenDemo::<Bls12> {
                 params: Box::new(JubjubBls12::new()),
                 image: None,
+                data: vec![None;15],
                 preimage: None
             };
             generate_random_parameters(c, rng).unwrap()
@@ -86,6 +115,7 @@ mod tests {
         let c = PedersenDemo::<Bls12> {
             params: Box::new(JubjubBls12::new()),
             image: Some(image),
+            data: data.iter().map(|e| Some(e.clone())).collect(),
             preimage: Some(preimage)
         };
         
@@ -105,10 +135,11 @@ mod tests {
         proof_c.read_to_end(&mut proof_b).unwrap();
         println!("Proof: {}", base64::encode(&proof_b));
 
-        let inputs = vec![image];
+        let mut inputs = vec![image];
+        inputs.extend(data.iter().cloned());
 
 
-        let mut inputs_b = vec![0u8;32];
+        let mut inputs_b = vec![0u8;32*inputs.len()];
         write_fr_iter((&inputs).into_iter(), &mut inputs_b);
 
         println!("Inputs: {}", base64::encode(&inputs_b));
