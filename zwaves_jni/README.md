@@ -5,8 +5,12 @@
 To build `zwaves.jar` we need to cross compile the library for Linux, Windows and MacOS. 
 This HOWTO is working for `rust 1.38+ stable` and Ubuntu 64bit.
 
+
+### Install gradle
+
 Install [gradle](https://gradle.org/install/).
 
+### Install dependencies and add targets
 
 ```sh
 # Install dependencies for cross compilation Linux to MacOS
@@ -35,6 +39,7 @@ rustup target add x86_64-unknown-linux-gnu
 
 ```
 
+### Build jar
 
 ```sh
 # build jar file
