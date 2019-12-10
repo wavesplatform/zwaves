@@ -21,13 +21,12 @@ pub fn compress<E: JubjubEngine, CS>(
 {
   let left_bits = left.into_bits_le_strict(cs.namespace(|| "left_bits <== bitify(left)"))?;
   let right_bits = right.into_bits_le_strict(cs.namespace(|| "right_bits <== bitify(right)"))?;
-  let mut total_bits = vec![];
-  total_bits.extend(left_bits);
-  total_bits.extend(right_bits);
+
+
   let res = pedersen_hash::pedersen_hash(
             cs.namespace(|| "res <== pedersen_hash(total_bits)"),
             personalization,
-            &total_bits,
+            left_bits.iter().chain(right_bits.iter()).cloned().collect::<Vec<_>>().as_slice(),
             params
         )?.get_x().clone();
   Ok(res)

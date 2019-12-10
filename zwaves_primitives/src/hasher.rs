@@ -192,9 +192,6 @@ impl Default for PedersenHasherBls12 {
 
 
 
-fn cmp_slices<T: std::cmp::Eq>(a: &[T], b: &[T]) -> bool {
-    (a.len()==b.len()) && (0..a.len()).fold(true, |acc, i| acc && a[i]==b[i])
-}
 
 
 
@@ -210,8 +207,8 @@ fn test_update_merkle_proof() {
     let proof0 = hasher.update_merkle_proof(&proof_defaults, 0, &elements0).unwrap();
     let proof1 = hasher.update_merkle_proof(&proof0, elements0.len() as u64, &elements1).unwrap();
     let proof2 = hasher.update_merkle_proof(&proof_defaults, 0, &elements2).unwrap();
-
-    assert!(cmp_slices(&proof1, &proof2), "Proofs must be same");
+    
+    assert!(proof1.into_iter().zip(proof2.into_iter()).all(|(x,y)| x==y), "Proofs must be same");
 }
 
 #[test]
@@ -228,7 +225,7 @@ fn test_update_merkle_root_and_proof() {
     let (root1, proof1) = hasher.update_merkle_root_and_proof(&root0, &proof0, elements0.len() as u64, &elements1).unwrap();
     let (root2, proof2) = hasher.update_merkle_root_and_proof(&root_default, proof_defaults, 0, &elements2).unwrap();
 
-    assert!(cmp_slices(&proof1, &proof2), "Proofs must be same");
+    assert!(proof1.into_iter().zip(proof2.into_iter()).all(|(x,y)| x==y), "Proofs must be same");
     assert!(root1==root2, "Roots must be same");
 }
 

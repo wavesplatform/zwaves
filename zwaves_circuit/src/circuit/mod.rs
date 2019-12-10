@@ -4,7 +4,7 @@ use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
 use bellman::groth16::{Proof, generate_random_parameters, prepare_verifying_key, create_random_proof, verify_proof};
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
-use pairing::{PrimeField};
+use pairing::{PrimeField, PrimeFieldRepr};
 use rand::os::OsRng;
 use rand::Rng;
 use sapling_crypto::constants;
@@ -19,6 +19,8 @@ use blake2_rfc::blake2s::Blake2s;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 
+use itertools::Itertools;
+
 const MERKLE_PROOF_LEN:usize = 48;
 
 
@@ -32,14 +34,48 @@ pub struct NoteData<E: JubjubEngine> {
 }
 
 
+fn fr_repr_cmp<R:PrimeFieldRepr>(x: &R, y: &R) -> ::std::cmp::Ordering {
+    for (a, b) in x.as_ref().iter().rev().zip(y.as_ref().iter().rev()) {
+        if a < b {
+            return ::std::cmp::Ordering::Less;
+        } else if a > b {
+            return ::std::cmp::Ordering::Greater;
+        }
+    }
+    ::std::cmp::Ordering::Equal
+}
+
+fn affine<P:PrimeField>(mut x: P::Repr) -> P {
+    let nlimbs = P::char().as_ref().len();
+    let rem_bits = nlimbs*64 - P::NUM_BITS as usize;
+
+    let mut red = P::char().clone();
+    for i in 0..rem_bits {
+        red.add_nocarry(&red.clone());
+    }
+
+    for i in 0 .. rem_bits+1 {
+        if fr_repr_cmp(&x, &red) == ::std::cmp::Ordering::Less {
+            break;
+        }
+        x.sub_noborrow(&red);
+        if i!=rem_bits {
+            red.shr(1);
+        }
+    }
+    P::from_repr(x).unwrap()
+}
+
 
 pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::Fr {
-    let mut total_bits : Vec<bool> = vec![];
-    total_bits.extend(BitIteratorLe::new(data.asset_id.into_repr()).take(64));
-    total_bits.extend(BitIteratorLe::new(data.amount.into_repr()).take(64));
-    total_bits.extend(BitIteratorLe::new(data.native_amount.into_repr()).take(64));
-    total_bits.extend(BitIteratorLe::new(data.txid.into_repr()).take(E::Fr::NUM_BITS as usize));
-    total_bits.extend(BitIteratorLe::new(data.owner.into_repr()).take(E::Fr::NUM_BITS as usize));
+
+
+    let total_bits = [data.asset_id, data.amount, data.native_amount, data.txid, data.owner].iter()
+    .zip([64, 64, 64, E::Fr::NUM_BITS, E::Fr::NUM_BITS].iter())
+        .flat_map(|(e, &sz)| {
+            e.into_repr().as_ref().to_vec().into_iter().flat_map(|n| (0..64).map(move |i| (n >> i) & 1u64 == 1u64  )).take(sz as usize)
+        })
+        .collect::<Vec<bool>>();
     pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
 }
 
@@ -47,14 +83,18 @@ pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr) -> E::Fr {
     let mut h = Blake2s::with_params(32, &[], &[], constants::PRF_NF_PERSONALIZATION);
     let mut data: Vec<_> = ByteIteratorLe::new(note_hash.into_repr()).collect();
     
-    
-
     h.update(&data);
 
-    let hash_result = h.finalize();
-    // TODO convert hash_result into E::Fr
-    E::Fr::from_str("1").unwrap()
+    let mut res = E::Fr::char().clone();
 
+    let hash_result = h.finalize();
+    
+    let limbs = hash_result.as_ref().iter().chunks(8).into_iter()
+        .map(|e| e.enumerate().fold(0u64, |x, (i, &y)| x + ((y as u64)<< (i*8)))).collect::<Vec<u64>>();
+
+    res.as_mut().iter_mut().zip(limbs.iter()).for_each(|(target, &value)| *target = value);
+
+    affine(res)
 }
 
 

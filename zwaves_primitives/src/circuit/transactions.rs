@@ -51,20 +51,20 @@ pub fn transfer<E: JubjubEngine, CS>(
         note::note_hash(cs.namespace(|| format!("hashing {} input", i)), &in_note[i], params).unwrap()
     }).collect();
 
-    let in_root : Vec<_> = (0..1).map( |i| {
+    let in_root = (0..1).map( |i| {
         merkle_proof::merkle_proof(
             cs.namespace(|| format!("compute merkle proof for {} input", i)), 
             in_proof[i], 
             &in_hash[i], 
-            params).unwrap()
-    }).collect();
+            params)
+    }).collect::<Result<Vec<_>,_>>()?;
 
     for i in 0..1 {
         let nf = ownership::nullifier(
             cs.namespace(|| format!("compute nullifier for {} input", i)), 
             &in_hash[i],
             &sk_bits, 
-            params).unwrap();
+            params)?;
         
         cs.enforce(
             || format!("checking nullifier for {} input", i), 
@@ -87,7 +87,7 @@ pub fn transfer<E: JubjubEngine, CS>(
             |lc| lc);
 
         
-        let out_hash_cmp = note::note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params).unwrap();
+        let out_hash_cmp = note::note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params)?;
         
         cs.enforce(
             || format!("cheking hash for {} output", i),
