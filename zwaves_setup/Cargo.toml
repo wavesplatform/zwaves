@@ -1,20 +1,17 @@
 [package]
-name = "zwaves_primitives"
+name = "zwaves_setup"
 version = "0.1.0"
 authors = ["Igor Gulamov <igor.gulamov@gmail.com>"]
 edition = "2018"
 
-[lib]
-crate-type = ["rlib"]
 
 [dependencies]
 rand = "0.4"
 bellman = { version = "0.1.0"}
 sapling-crypto = { path = "../sapling-crypto"}
 pairing = "0.14"
-num = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-base64 = "0.11.0"
-bincode = "1.2.0"
-byteorder = "1"
-itertools = "0.8.2"
+phase2 = "0.2.2"
+
+[dependencies.blake2-rfc]
+git = "https://github.com/gtank/blake2-rfc"
+rev = "7a5b5fc99ae483a0043db7547fb79a6fa44b88a9"

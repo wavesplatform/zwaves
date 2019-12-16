@@ -1,18 +1,10 @@
-// Pedersen hash implementation of the Hasher trait
-
-extern crate bellman;
-extern crate pairing;
-extern crate sapling_crypto;
-
-use pairing::PrimeField;
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 
 use sapling_crypto::jubjub::{JubjubBls12, JubjubEngine};
 use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
 
-use crate::bit_iterator::BitIteratorLe;
-use self::pairing::{Field, Engine};
-
+use pairing::{Field, PrimeField};
+use crate::field::*;
 
 use num::Integer;
 use std::io;
@@ -25,44 +17,30 @@ pub fn u64_to_bits_le(x:u64) -> Vec<bool> {
     res
 }
 
-pub struct PedersenHasher<E: JubjubEngine> {
-    pub params: E::Params,
-    pub merkle_proof_defaults: Vec<E::Fr>
+
+
+pub fn hash_bits<E, I>(input: I, params: &E::Params) -> E::Fr 
+    where I: IntoIterator<Item=bool>,
+    E: JubjubEngine
+{
+    pedersen_hash::<E, _>(Personalization::NoteCommitment, input, params).into_xy().0
+}
+
+pub fn hash<E:JubjubEngine>(data: &E::Fr, params: &E::Params) -> E::Fr {
+    hash_bits::<E, _>(fr_to_repr_bool(data).into_iter().take(E::Fr::NUM_BITS as usize), params)
 }
 
 
 
-impl<E: JubjubEngine> PedersenHasher<E> {
-    pub fn hash_bits<I: IntoIterator<Item = bool>>(&self, input: I) -> E::Fr {
-        pedersen_hash::<E, _>(Personalization::NoteCommitment, input, &self.params)
-        .into_xy()
-        .0
-    }
+pub fn compress<E:JubjubEngine>(left: &E::Fr, right: &E::Fr, p: Personalization, params: &E::Params) -> E::Fr {
+    let bits = fr_to_repr_bool(left).into_iter().take(E::Fr::NUM_BITS as usize).chain(
+        fr_to_repr_bool(right).into_iter().take(E::Fr::NUM_BITS as usize));
 
-    pub fn hash(&self, data: E::Fr) -> E::Fr {
-        self.hash_bits(self.get_bits_le_fixed(data, E::Fr::NUM_BITS as usize))
-    }
+    pedersen_hash::<E, _>(p, bits, params).into_xy().0
 
+}
 
-    pub fn get_bits_le_fixed(&self, data: E::Fr, n: usize) -> Vec<bool> {
-        let mut r: Vec<bool> = Vec::with_capacity(n);
-        r.extend(BitIteratorLe::new(data.into_repr()).take(n));
-        let len = r.len();
-        r.extend((len..n).map(|_| false));
-        r
-    }
-
-    pub fn compress(&self, left: &E::Fr, right: &E::Fr, p: Personalization) -> E::Fr {
-        let leftbits = self.get_bits_le_fixed(*left, E::Fr::NUM_BITS as usize);
-        let rightbits = self.get_bits_le_fixed(*right, E::Fr::NUM_BITS as usize);
-        let mut total_bits = vec![];
-        total_bits.extend(leftbits);
-        total_bits.extend(rightbits);
-        pedersen_hash::<E, _>(p, total_bits, &self.params)
-        .into_xy()
-        .0
-    }
-
+/*
     pub fn root(&self, sibling: &[E::Fr], index:u64, leaf: E::Fr) -> io::Result<E::Fr> {
         let index_bits = u64_to_bits_le(index);
         let merkle_proof_sz = sibling.len();
@@ -229,4 +207,4 @@ fn test_update_merkle_root_and_proof() {
     assert!(root1==root2, "Roots must be same");
 }
 
-
+*/
