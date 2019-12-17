@@ -1,5 +1,43 @@
-use pairing::{PrimeField, PrimeFieldRepr};
+use pairing::{PrimeField, Field, PrimeFieldRepr};
 use itertools::Itertools;
+
+
+
+#[derive(Debug)]
+pub struct FrReprIterator<R:PrimeFieldRepr> {
+    pub data : R,
+    size : usize,
+    pos : usize
+}
+
+impl<R:PrimeFieldRepr> FrReprIterator<R> {
+    pub fn new(data:R) -> Self {
+        let size = data.as_ref().len();
+        Self {
+            data,
+            size,
+            pos: 0 as usize
+        }
+    }
+}
+
+impl<R:PrimeFieldRepr> Iterator for FrReprIterator<R> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        if self.pos == self.size {
+            None
+        } else {
+            let res = Some(self.data.as_ref()[self.pos]);
+            self.pos += 1;
+            res
+        }
+    }
+}
+
+
+
+
 
 pub fn fr_repr_cmp<R:PrimeFieldRepr>(x: &R, y: &R) -> ::std::cmp::Ordering {
     for (a, b) in x.as_ref().iter().rev().zip(y.as_ref().iter().rev()) {
@@ -12,12 +50,13 @@ pub fn fr_repr_cmp<R:PrimeFieldRepr>(x: &R, y: &R) -> ::std::cmp::Ordering {
     ::std::cmp::Ordering::Equal
 }
 
+
 pub fn affine<P:PrimeField>(mut x: P::Repr) -> P {
     let nlimbs = P::char().as_ref().len();
     let rem_bits = nlimbs*64 - P::NUM_BITS as usize;
 
     let mut red = P::char().clone();
-    for i in 0..rem_bits {
+    for _ in 0..rem_bits {
         red.add_nocarry(&red.clone());
     }
 
@@ -33,38 +72,22 @@ pub fn affine<P:PrimeField>(mut x: P::Repr) -> P {
     P::from_repr(x).unwrap()
 }
 
+
+
+
+
 pub fn fr_to_repr_u64<P:PrimeField>(x: &P) -> impl IntoIterator<Item=u64> {
-    let mut repr = x.into_repr();
-    unsafe {
-        let l = repr.as_ref().len();
-        let z = repr.as_mut().as_mut_ptr();
-        ::core::mem::forget(repr);
-        Vec::from_raw_parts(z, l, l)
-    }
+    FrReprIterator::new(x.into_repr())
 }
 
 
 pub fn fr_to_repr_u8<P:PrimeField>(x: &P) -> impl IntoIterator<Item=u8> {
-    let mut repr = x.into_repr();
-    unsafe {
-        let l = repr.as_ref().len();
-        let z = repr.as_mut().as_mut_ptr();
-        ::core::mem::forget(repr);
-        Vec::from_raw_parts(z, l, l).into_iter()
-            .flat_map(|x| (0..64).step_by(8).map(move |i| ((x >> i) & 0xff) as u8))
-    }
+    FrReprIterator::new(x.into_repr()).flat_map(|x| (0..64).step_by(8).map(move |i| ((x >> i) & 0xff) as u8))
 }
 
 
 pub fn fr_to_repr_bool<P:PrimeField>(x: &P) -> impl IntoIterator<Item=bool> {
-    let mut repr = x.into_repr();
-    unsafe {
-        let l = repr.as_ref().len();
-        let z = repr.as_mut().as_mut_ptr();
-        ::core::mem::forget(repr);
-        Vec::from_raw_parts(z, l, l).into_iter()
-            .flat_map(|x| (0..64).map(move |i| (x >> i) > 0))
-    }
+    FrReprIterator::new(x.into_repr()).flat_map(|x| (0..64).map(move |i| ((x >> i) & 1) > 0))
 }
 
 
@@ -77,7 +100,8 @@ pub fn repr_u64_to_fr<'a, I:IntoIterator<Item=&'a u64>, P:PrimeField>(r:I) -> P 
 
 pub fn repr_u8_to_fr<'a, I:IntoIterator<Item=&'a u8>, P:PrimeField>(r:I) -> P {
     let mut res = P::char();
-    let r = r.into_iter().chunks(8).into_iter().map(|c| c.fold(0u64, |x, &y| (x<<8) + y as u64));
+    let chunks = r.into_iter().chunks(8);
+    let r = chunks.into_iter().map(|c| c.fold(0u64, |x, &y| (x<<8) + y as u64));
     res.as_mut().iter_mut().zip(r).for_each(|(a, b)| *a = b);
     affine(res)
 }
@@ -85,9 +109,25 @@ pub fn repr_u8_to_fr<'a, I:IntoIterator<Item=&'a u8>, P:PrimeField>(r:I) -> P {
 
 pub fn repr_bool_to_fr<'a, I:IntoIterator<Item=&'a bool>, P:PrimeField>(r:I) -> P {
     let mut res = P::char();
-    let r = r.into_iter().chunks(64).into_iter().map(|c| c.fold(0u64, |x, &y| (x<<1) + y as u64));
+    let chunks = r.into_iter().chunks(64);
+    let r = chunks.into_iter().map(|c| c.fold(0u64, |x, &y| (x<<1) + y as u64));
     res.as_mut().iter_mut().zip(r).for_each(|(a, b)| *a = b);
     affine(res)
+}
+
+#[cfg(test)]
+mod fieldtools_tests {
+    use super::*;
+    use pairing::bls12_381::{Fr};
+
+    #[test]
+    fn test_fr_to_repr_bool() {
+        let f = Fr::one();
+        let v = fr_to_repr_u64(&f);
+
+        assert!(v.into_iter().enumerate().all(|(i,x)| (i > 0) ^ (x == 1) ), "Should be converted into 1, 0, 0, 0, ...");
+    }
+
 }
 
 

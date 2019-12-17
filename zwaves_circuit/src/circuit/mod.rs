@@ -12,6 +12,8 @@ use sapling_crypto::constants;
 use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
 use zwaves_primitives::circuit::note;
 use zwaves_primitives::circuit::transactions;
+use zwaves_primitives::fieldtools;
+
 
 use blake2_rfc::blake2s::Blake2s;
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -41,20 +43,14 @@ pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::
 
     let total_bits = [data.asset_id, data.amount, data.native_amount, data.txid, data.owner].iter()
     .zip([64, 64, 64, E::Fr::NUM_BITS, E::Fr::NUM_BITS].iter())
-        .flat_map(|(e, &sz)| {
-            fr_to_repr_vec(e).into_iter().flat_map(|n| (0..64).map(move |i| (n >> i) & 1u64 == 1u64  )).take(sz as usize)
-        })
+        .flat_map(|(e, &sz)| fieldtools::fr_to_repr_bool(e).take(sz as usize))
         .collect::<Vec<bool>>();
     pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
 }
 
 pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr) -> E::Fr {
     let mut h = Blake2s::with_params(32, &[], &[], constants::PRF_NF_PERSONALIZATION);
-    let data = fr_to_repr_vec(note_hash).into_iter().flat_map(|x| (0..64).step_by(8).map(move |i| ((x >> i) & 0xff) as u8))
-        .chain(fr_to_repr_vec(sk).into_iter().flat_map(|x| (0..64).step_by(8).map(move |i| ((x >> i) & 0xff) as u8)))
-        .collect::<Vec<u8>>();
-
-    
+    let data = fieldtools::fr_to_repr_u8(note_hash).into_iter().chain(fieldtools::fr_to_repr_u8(sk)).collect::<Vec<u8>>();
     h.update(&data);
 
     let mut res = E::Fr::char().clone();
@@ -66,7 +62,7 @@ pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr) -> E::Fr {
 
     res.as_mut().iter_mut().zip(limbs.iter()).for_each(|(target, &value)| *target = value);
 
-    affine(res)
+    fieldtools::affine(res)
 }
 
 

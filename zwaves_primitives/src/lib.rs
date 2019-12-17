@@ -1,5 +1,5 @@
-pub mod hasher;
+pub mod pedersen_hasher;
 pub mod circuit;
 pub mod verifier;
 pub mod serialization;
-pub mod field;
+pub mod fieldtools;
