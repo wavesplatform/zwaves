@@ -14,7 +14,6 @@ use std::{mem, io, iter};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt};
 
-use zwaves_primitives::hasher::PedersenHasherBls12;
 use zwaves_primitives::serialization::{read_fr_repr_be, read_fr_vec};
 use zwaves_primitives::verifier::{TruncatedVerifyingKey, verify_proof};
 
@@ -22,7 +21,7 @@ use zwaves_primitives::verifier::{TruncatedVerifyingKey, verify_proof};
 fn parse_jni_bytes(env: &JNIEnv, jv: jbyteArray) -> Vec<u8> {
     let v_len = env.get_array_length(jv).unwrap() as usize;
     let mut v = vec![0i8; v_len];
-    env.get_byte_array_region(jv, 0, &mut v[..]);
+    env.get_byte_array_region(jv, 0, &mut v[..]).unwrap();
     
     unsafe {
         let ptr = v.as_mut_ptr();
