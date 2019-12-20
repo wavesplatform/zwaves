@@ -9,9 +9,6 @@ use sapling_crypto::circuit::test::TestConstraintSystem;
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::{PrimeField, Field};
 
-use rand::os::OsRng;
-use rand::Rng;
-
 
 use crate::pedersen_hasher;
 use crate::circuit::merkle_proof;

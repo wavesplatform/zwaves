@@ -167,7 +167,7 @@ impl JubjubParams<Bls12> for JubjubBls12 {
         63
     }
     fn fixed_base_chunks_per_generator(&self) -> usize {
-        84
+        85
     }
     fn pedersen_circuit_generators(&self) -> &[Vec<Vec<(Fr, Fr)>>] {
         &self.pedersen_circuit_generators
@@ -284,11 +284,11 @@ impl JubjubBls12 {
 
                 let mut num_bits = 0;
                 while num_bits <= fs::Fs::NUM_BITS {
-                    let mut table = Vec::with_capacity(1 << window);
+                    let mut table = Vec::with_capacity(1<<window);
 
                     let mut base = edwards::Point::zero();
 
-                    for _ in 0..(1 << window) {
+                    for _ in 0..(1<<window) {
                         table.push(base.clone());
                         base = base.add(&g, &tmp_params);
                     }

@@ -1,6 +1,6 @@
 use pairing::{PrimeField, Field, PrimeFieldRepr};
 use itertools::Itertools;
-
+use std::mem::transmute;
 
 
 #[derive(Debug)]
@@ -51,20 +51,24 @@ pub fn fr_repr_cmp<R:PrimeFieldRepr>(x: &R, y: &R) -> ::std::cmp::Ordering {
 }
 
 
+
+
 pub fn affine<P:PrimeField>(mut x: P::Repr) -> P {
+
+
     let nlimbs = P::char().as_ref().len();
     let rem_bits = nlimbs*64 - P::NUM_BITS as usize;
 
-    let mut red = P::char().clone();
+    let mut red = P::char();
     for _ in 0..rem_bits {
         red.add_nocarry(&red.clone());
     }
 
     for i in 0 .. rem_bits+1 {
-        if fr_repr_cmp(&x, &red) == ::std::cmp::Ordering::Less {
-            break;
+        if fr_repr_cmp(&x, &red) != ::std::cmp::Ordering::Less {
+            x.sub_noborrow(&red);
         }
-        x.sub_noborrow(&red);
+        
         if i!=rem_bits {
             red.shr(1);
         }
@@ -72,6 +76,13 @@ pub fn affine<P:PrimeField>(mut x: P::Repr) -> P {
     P::from_repr(x).unwrap()
 }
 
+
+pub fn f2f<A:PrimeField, B:PrimeField>(x:&A) -> B 
+{
+    let mut repr = B::char();
+    repr.as_mut().iter_mut().zip(x.into_repr().as_ref().iter()).for_each(|(r, s)| *r = *s);
+    affine(repr)
+}
 
 
 

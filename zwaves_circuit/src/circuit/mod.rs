@@ -17,8 +17,6 @@ use zwaves_primitives::fieldtools;
 
 use blake2_rfc::blake2s::Blake2s;
 use byteorder::{LittleEndian, WriteBytesExt};
-
-
 use itertools::Itertools;
 
 
@@ -39,11 +37,9 @@ pub struct NoteData<E: JubjubEngine> {
 
 
 pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::Fr {
-
-
     let total_bits = [data.asset_id, data.amount, data.native_amount, data.txid, data.owner].iter()
     .zip([64, 64, 64, E::Fr::NUM_BITS, E::Fr::NUM_BITS].iter())
-        .flat_map(|(e, &sz)| fieldtools::fr_to_repr_bool(e).take(sz as usize))
+        .flat_map(|(e, &sz)| fieldtools::fr_to_repr_bool(e).into_iter().take(sz as usize))
         .collect::<Vec<bool>>();
     pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
 }

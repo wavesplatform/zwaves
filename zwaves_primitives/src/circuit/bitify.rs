@@ -16,7 +16,6 @@ pub fn from_bits_le_to_num<E: JubjubEngine, CS>(
 ) -> Result<AllocatedNum<E>, SynthesisError>
     where CS: ConstraintSystem<E>
 {
-    assert!(bits.len() == E::Fr::NUM_BITS as usize);
 
     let mut num = Num::<E>::zero();
     let mut coeff = E::Fr::one();
