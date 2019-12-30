@@ -7,6 +7,11 @@ module.exports = {
     path: path.resolve(__dirname, "dist"),
     filename: "bootstrap.js",
   },
+  devServer: {
+    contentBase: path.join(__dirname, 'dist'),
+    compress: true,
+    port: 9000
+  },
   mode: "development",
   plugins: [
     new CopyWebpackPlugin(['index.html'])

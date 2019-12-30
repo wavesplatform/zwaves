@@ -398,7 +398,7 @@ pub fn field_into_allocated_bits_le_limited<E: Engine, CS: ConstraintSystem<E>, 
     };
 
     // Allocate in little-endian order
-    let bits = values[0..limit].to_vec().into_iter().rev().enumerate().map(|(i, b)| {
+    let bits = values.to_vec().into_iter().rev().take(limit).enumerate().map(|(i, b)| {
         AllocatedBit::alloc(
             cs.namespace(|| format!("bit {}", i)),
             b

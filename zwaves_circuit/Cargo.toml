@@ -9,8 +9,8 @@ crate-type = ["rlib"]
 
 [dependencies]
 rand = "0.4"
-bellman = { version = "0.1.0"}
-sapling-crypto = { path = "../sapling-crypto"}
+bellman = { version = "0.1.0" }
+sapling-crypto = { path = "../sapling-crypto" }
 pairing = "0.14"
 zwaves_primitives = {path = "../zwaves_primitives"}
 byteorder = "1.3.2"

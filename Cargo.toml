@@ -5,7 +5,8 @@ members = [
   "zwaves_circuit",
   "zwaves_jni",
   "sapling-crypto",
-  "zwaves_setup"
+  "zwaves_setup",
+  "zwaves_node/native"
 ]
 
 [profile.release]

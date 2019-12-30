@@ -243,7 +243,7 @@ pub fn transfer<E: JubjubEngine, CS>(
 mod transactions_test {
     use super::*;
     use sapling_crypto::circuit::test::TestConstraintSystem;
-    use sapling_crypto::jubjub::JubjubBls12;
+    use sapling_crypto::jubjub::{JubjubBls12, JubjubParams};
     use pairing::bls12_381::{Bls12, Fr, FrRepr};
     use rand::os::OsRng;
     use rand::Rng;
@@ -254,6 +254,8 @@ mod transactions_test {
     fn test_nullifier() -> Result<(), SynthesisError> {
         let rng = &mut OsRng::new().unwrap();
         let params = JubjubBls12::new();
+
+
         let mut cs = TestConstraintSystem::<Bls12>::new();
 
         let nh = rng.gen::<Fr>();

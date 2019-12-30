@@ -39,7 +39,7 @@ pub struct TestConstraintSystem<E: Engine> {
         LinearCombination<E>,
         String
     )>,
-    inputs: Vec<(E::Fr, String)>,
+    pub inputs: Vec<(E::Fr, String)>,
     aux: Vec<(E::Fr, String)>
 }
 

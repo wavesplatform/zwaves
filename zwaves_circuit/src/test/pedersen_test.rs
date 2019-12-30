@@ -42,7 +42,7 @@ impl <E: JubjubEngine> Circuit<E> for PedersenDemo<E> {
 mod tests {
     use super::*;
 //    use test::Bencher;
-    use zwaves_primitives::hasher::PedersenHasherBls12;
+    use zwaves_primitives::pedersen_hasher;
     //use sapling_crypto::circuit::test::TestConstraintSystem;
 
 
@@ -51,10 +51,11 @@ mod tests {
         // This may not be cryptographically safe, use
         // `OsRng` (for example) in production software.
         let rng = &mut OsRng::new().unwrap();
+        let params = JubjubBls12::new();
 
         let preimage = rng.gen();
-        let hasher = PedersenHasherBls12::default();
-        let image = hasher.hash(preimage);
+        
+        let image = pedersen_hasher::hash::<Bls12>(&preimage, &params);
 
         println!("Preimage: {}", preimage);
         println!("Hash: {}", image);
@@ -72,22 +73,6 @@ mod tests {
         // Prepare the verification key (for proof verification)
         let tvk = prepare_verifying_key(&params.vk);
 
-        /*
-        println!("Checking constraints...");
-        let c = PedersenDemo::<Bls12> {
-            params: pedersen_params,
-            image: Some(image),
-            preimage: Some(preimage)
-        };
-        
-        let mut cs = TestConstraintSystem::<Bls12>::new();
-        c.synthesize(&mut cs).unwrap();
-        println!("Unconstrained: {}", cs.find_unconstrained());
-        let err = cs.which_is_unsatisfied();
-        if err.is_some() {
-            panic!("ERROR satisfying in: {}", err.unwrap());
-        }
-        */
 
         println!("Creating proofs...");
         let c = PedersenDemo::<Bls12> {
@@ -107,65 +92,5 @@ mod tests {
         assert!(result, "Proof is correct");
     }
 
-//    #[bench]
-//    fn bench_pedersen_proof_create(b: &mut Bencher) {
-//        let rng = &mut OsRng::new().unwrap();
-//
-//        let preimage = rng.gen();
-//        let hasher = PedersenHasherBls12::default();
-//        let image = hasher.hash(preimage);
-//
-//        let params = {
-//            let c = PedersenDemo::<Bls12> {
-//                params: Box::new(JubjubBls12::new()),
-//                image: None,
-//                preimage: None,
-//            };
-//            generate_random_parameters(c, rng).unwrap()
-//        };
-//
-//        // Prepare the verification key (for proof verification)
-//        let pvk = prepare_verifying_key(&params.vk);
-//
-//        b.iter(|| {
-//            let c = PedersenDemo::<Bls12> {
-//                params: Box::new(JubjubBls12::new()),
-//                image: Some(image),
-//                preimage: Some(preimage),
-//            };
-//            create_random_proof(c, &params, rng).unwrap()
-//        });
-//    }
-//
-//    #[bench]
-//    fn bench_pedersen_proof_verify(b: &mut Bencher) {
-//        let rng = &mut OsRng::new().unwrap();
-//
-//        let preimage = rng.gen();
-//        let hasher = PedersenHasherBls12::default();
-//        let image = hasher.hash(preimage);
-//
-//        let params = {
-//            let c = PedersenDemo::<Bls12> {
-//                params: Box::new(JubjubBls12::new()),
-//                image: None,
-//                preimage: None,
-//            };
-//            generate_random_parameters(c, rng).unwrap()
-//        };
-//
-//        // Prepare the verification key (for proof verification)
-//        let pvk = prepare_verifying_key(&params.vk);
-//
-//        let c = PedersenDemo::<Bls12> {
-//            params: Box::new(JubjubBls12::new()),
-//            image: Some(image),
-//            preimage: Some(preimage),
-//        };
-//        let stopwatch = std::time::Instant::now();
-//        let proof = create_random_proof(c, &params, rng).unwrap();
-//
-//        b.iter(||
-//            verify_proof(&pvk, &proof, &[image]).unwrap());
-//    }
+
 }

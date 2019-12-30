@@ -1,0 +1,15 @@
+{
+  "name": "zwaves_node",
+  "version": "0.1.0",
+  "description": "",
+  "main": "lib/index.js",
+  "author": "Igor Gulamov <igor.gulamov@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "bigint-buffer": "^1.1.5",
+    "neon-cli": "^0.3.3"
+  },
+  "scripts": {
+    "install": "neon build"
+  }
+}

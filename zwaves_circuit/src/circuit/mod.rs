@@ -10,8 +10,8 @@ use rand::Rng;
 use sapling_crypto::constants;
 
 use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
-use zwaves_primitives::circuit::note;
 use zwaves_primitives::circuit::transactions;
+use zwaves_primitives::transactions::NoteData;
 use zwaves_primitives::fieldtools;
 
 
@@ -23,52 +23,16 @@ use itertools::Itertools;
 const MERKLE_PROOF_LEN:usize = 48;
 
 
-#[derive(Clone)]
-pub struct NoteData<E: JubjubEngine> {
-    pub asset_id: E::Fr,
-    pub amount: E::Fr,
-    pub native_amount: E::Fr,
-    pub txid: E::Fr,
-    pub owner: E::Fr
-}
 
 
 
 
-
-pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::Fr {
-    let total_bits = [data.asset_id, data.amount, data.native_amount, data.txid, data.owner].iter()
-    .zip([64, 64, 64, E::Fr::NUM_BITS, E::Fr::NUM_BITS].iter())
-        .flat_map(|(e, &sz)| fieldtools::fr_to_repr_bool(e).into_iter().take(sz as usize))
-        .collect::<Vec<bool>>();
-    pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
-}
-
-pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr) -> E::Fr {
-    let mut h = Blake2s::with_params(32, &[], &[], constants::PRF_NF_PERSONALIZATION);
-    let data = fieldtools::fr_to_repr_u8(note_hash).into_iter().chain(fieldtools::fr_to_repr_u8(sk)).collect::<Vec<u8>>();
-    h.update(&data);
-
-    let mut res = E::Fr::char().clone();
-
-    let hash_result = h.finalize();
-    
-    let limbs = hash_result.as_ref().iter().chunks(8).into_iter()
-        .map(|e| e.enumerate().fold(0u64, |x, (i, &y)| x + ((y as u64)<< (i*8)))).collect::<Vec<u64>>();
-
-    res.as_mut().iter_mut().zip(limbs.iter()).for_each(|(target, &value)| *target = value);
-
-    fieldtools::affine(res)
-}
-
-
-pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>, R: ::rand::Rng>(
-    rng: &mut R,
+pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>>(
     mut cs: CS, 
-    data: Option<NoteData<E>>) -> Result<note::Note<E>, SynthesisError> {
+    data: Option<NoteData<E>>) -> Result<transactions::Note<E>, SynthesisError> {
         Ok(match data {
             Some(data) => {
-                note::Note {
+                transactions::Note {
                     asset_id: AllocatedNum::alloc(cs.namespace(|| "alloc asset_id"), || Ok(data.asset_id)).unwrap(),
                     amount: AllocatedNum::alloc(cs.namespace(|| "alloc amount"), || Ok(data.amount)).unwrap(),
                     native_amount: AllocatedNum::alloc(cs.namespace(|| "alloc native_amount"), || Ok(data.native_amount)).unwrap(),
@@ -77,7 +41,7 @@ pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>, R: ::rand::Rng>(
                 }
             },
             None => {
-                note::Note {
+                transactions::Note {
                     asset_id: AllocatedNum::alloc(cs.namespace(|| "alloc asset_id"), || Err(SynthesisError::AssignmentMissing)).unwrap(),
                     amount: AllocatedNum::alloc(cs.namespace(|| "alloc amount"), || Err(SynthesisError::AssignmentMissing)).unwrap(),
                     native_amount: AllocatedNum::alloc(cs.namespace(|| "alloc native_amount"), || Err(SynthesisError::AssignmentMissing)).unwrap(),
@@ -93,47 +57,121 @@ pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>, R: ::rand::Rng>(
 
 
 #[derive(Clone)]
-pub struct Deposit<E: JubjubEngine> {
+pub struct Deposit<'a, E: JubjubEngine> {
     pub data: Option<NoteData<E>>,
-    pub params: Box<E::Params>
+    pub params: &'a E::Params
 }
 
 
 
-impl <E: JubjubEngine> Circuit<E> for Deposit<E> {
+impl <'a, E: JubjubEngine> Circuit<E> for Deposit<'a, E> {
     fn synthesize<CS: ConstraintSystem<E>>(
         self,
         cs: &mut CS
     ) -> Result<(), SynthesisError>
     {
-        let rng = &mut OsRng::new().unwrap();
 
-        let out_note = alloc_note_data(rng, cs.namespace(|| "alloc note data"), self.data.clone())?;
-        let out_hash = note::note_hash(cs.namespace(|| "hashing input"), &out_note, &self.params)?;
+        let out_note = alloc_note_data(cs.namespace(|| "alloc note data"), self.data.clone())?;
+        let out_hash = transactions::note_hash(cs.namespace(|| "hashing input"), &out_note, self.params)?;
 
+        
+        out_hash.inputize(cs.namespace(|| "inputize out_hash"))?;
         out_note.asset_id.inputize(cs.namespace(|| "inputize asset_id"))?;
         out_note.amount.inputize(cs.namespace(|| "inputize amount"))?;
         out_note.native_amount.inputize(cs.namespace(|| "inputize native_amount"))?;
-        out_hash.inputize(cs.namespace(|| "inputize out_hash"))?;
 
         Ok(())
     }
 }
 
 
+#[cfg(test)]
+mod circuit_test {
+    use super::*;
+    use sapling_crypto::circuit::test::TestConstraintSystem;
+    use sapling_crypto::jubjub::{JubjubBls12, JubjubParams};
+    use pairing::bls12_381::{Bls12, Fr, FrRepr};
+    use pairing::{Field};
+    use rand::os::OsRng;
+    use rand::Rng;
 
-// in_note: [note::Note<E>; 2],
-// in_nullifier: [AllocatedNum<E>; 2],
-// in_proof: [&[(AllocatedNum<E>, Boolean)]; 2],
+    use zwaves_primitives::fieldtools;
 
-// out_hash: [AllocatedNum<E>; 2],
-// out_note: [note::Note<E>; 2],
-
-// root_hash: AllocatedNum<E>,
-// sk: AllocatedNum<E>,
+    #[test]
+    fn test_deposit() -> Result<(), SynthesisError> {
+        let rng = &mut OsRng::new().unwrap();
+        let params = JubjubBls12::new();
 
 
+        let circuit = Deposit::<Bls12> {data: None, params: &params };
+        let zkparams = generate_random_parameters(circuit, rng)?;
 
+        let pvk = prepare_verifying_key(&zkparams.vk);
+
+        let note = NoteData::<Bls12> {
+            asset_id: Fr::one(),
+            amount: Fr::one(),
+            native_amount: Fr::one(),
+            txid: rng.gen(),
+            owner: rng.gen()
+        };
+
+        let note_hash = zwaves_primitives::transactions::note_hash(&note, &params);
+
+        let circuit = Deposit::<Bls12> {
+            data: Some(note.clone()),
+            params: &params
+        };
+
+        let proof = create_random_proof(circuit, &zkparams, rng)?;
+
+        let result = verify_proof(
+            &pvk,
+            &proof,
+            &[note_hash, note.asset_id, note.amount, note.native_amount]
+        ).unwrap();
+        assert!(result, "Proof is correct");
+        Ok(())
+    }
+
+    #[test]
+    fn test_deposit_witness() -> Result<(), SynthesisError> {
+
+        let rng = &mut OsRng::new().unwrap();
+        let params = JubjubBls12::new();
+
+        let note = NoteData::<Bls12> {
+            asset_id: Fr::one(),
+            amount: Fr::one(),
+            native_amount: Fr::one(),
+            txid: rng.gen(),
+            owner: rng.gen()
+        };
+
+        let note_hash = zwaves_primitives::transactions::note_hash(&note, &params);
+
+        let circuit = Deposit::<Bls12> {
+            data: Some(note.clone()),
+            params: &params
+        };
+    
+    
+        let mut cs = TestConstraintSystem::<Bls12>::new();
+        circuit.synthesize(&mut cs).unwrap();
+
+        assert!(cs.inputs[1].0==note_hash, "note hash not satisfied");
+    
+        if !cs.is_satisfied() {
+            let not_satisfied = cs.which_is_unsatisfied().unwrap_or("");
+            assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
+        }
+
+ 
+
+        Ok(())
+    }
+
+}
 
 
 
@@ -159,26 +197,25 @@ impl <E: JubjubEngine> Circuit<E> for Transfer<E> {
         cs: &mut CS
     ) -> Result<(), SynthesisError>
     {
-        let rng = &mut OsRng::new().unwrap();
         let in_note = match self.data {
             Some(ref data) => [
-                alloc_note_data(rng, cs.namespace(|| "alloc in_note[0]"), Some(data.in_note[0].clone())).unwrap(),
-                alloc_note_data(rng, cs.namespace(|| "alloc in_note[1]"), Some(data.in_note[1].clone())).unwrap()
+                alloc_note_data(cs.namespace(|| "alloc in_note[0]"), Some(data.in_note[0].clone())).unwrap(),
+                alloc_note_data(cs.namespace(|| "alloc in_note[1]"), Some(data.in_note[1].clone())).unwrap()
             ],
             None => [
-                alloc_note_data(rng, cs.namespace(|| "alloc in_note[0]"), None).unwrap(),
-                alloc_note_data(rng, cs.namespace(|| "alloc in_note[1]"), None).unwrap()
+                alloc_note_data(cs.namespace(|| "alloc in_note[0]"), None).unwrap(),
+                alloc_note_data(cs.namespace(|| "alloc in_note[1]"), None).unwrap()
             ]
         };
 
         let out_note = match self.data {
             Some(ref data) => [
-                alloc_note_data(rng, cs.namespace(|| "alloc out_note[0]"), Some(data.out_note[0].clone())).unwrap(),
-                alloc_note_data(rng, cs.namespace(|| "alloc out_note[1]"), Some(data.out_note[1].clone())).unwrap()
+                alloc_note_data(cs.namespace(|| "alloc out_note[0]"), Some(data.out_note[0].clone())).unwrap(),
+                alloc_note_data(cs.namespace(|| "alloc out_note[1]"), Some(data.out_note[1].clone())).unwrap()
             ],
             None => [
-                alloc_note_data(rng, cs.namespace(|| "alloc out_note[0]"), None).unwrap(),
-                alloc_note_data(rng, cs.namespace(|| "alloc out_note[1]"), None).unwrap()
+                alloc_note_data(cs.namespace(|| "alloc out_note[0]"), None).unwrap(),
+                alloc_note_data(cs.namespace(|| "alloc out_note[1]"), None).unwrap()
             ]
         };
 

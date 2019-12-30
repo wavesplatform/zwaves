@@ -1,0 +1,26 @@
+[package]
+name = "zwaves_node"
+version = "0.1.0"
+authors = ["Igor Gulamov <igor.gulamov@gmail.com>"]
+license = "MIT"
+build = "build.rs"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "zwaves_node"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+neon-build = "0.3.3"
+
+[dependencies]
+neon = "0.3.3"
+
+rand = "0.4"
+bellman = { version = "0.1.0"}
+sapling-crypto = { path = "../../sapling-crypto" }
+zwaves_primitives = {path = "../../zwaves_primitives"}
+zwaves_circuit = {path = "../../zwaves_circuit"}
+
+pairing = "0.14"
+phase2 = "0.2.2"
