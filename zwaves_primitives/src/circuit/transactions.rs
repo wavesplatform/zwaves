@@ -12,6 +12,8 @@ use sapling_crypto::constants;
 use crate::circuit::bitify::{from_bits_le_to_num_limited, from_bits_le_to_num};
 use crate::circuit::{merkle_proof};
 
+use arrayvec::ArrayVec;
+
 pub struct Note<E: JubjubEngine> {
     pub asset_id: AllocatedNum<E>,       // 64 bits
     pub amount: AllocatedNum<E>,        // 64 bits
@@ -125,34 +127,17 @@ pub fn nullifier<E: JubjubEngine, CS>(
 
 
 
-
-pub fn deposit<E: JubjubEngine, CS>(
-    mut cs: CS,
-    in_note: Note<E>,
-    in_hash: AllocatedNum<E>,
-    params: &E::Params
-) -> Result<(), SynthesisError>
-    where CS: ConstraintSystem<E>
-{
-    let in_hash_cmp = note_hash(cs.namespace(|| "hashing input"), &in_note, params)?;
-    cs.enforce(|| "checking input hash", |lc| lc + in_hash.get_variable(), |lc| lc + CS::one(), |lc| lc + in_hash_cmp.get_variable());
-    Ok(())
-}
-
-
 pub fn transfer<E: JubjubEngine, CS>(
     mut cs: CS,
     in_note: [Note<E>; 2],
-    in_nullifier: [AllocatedNum<E>; 2],
     in_proof: [&[(AllocatedNum<E>, Boolean)]; 2],
 
-    out_hash: [AllocatedNum<E>; 2],
     out_note: [Note<E>; 2],
 
     root_hash: AllocatedNum<E>,
     sk: AllocatedNum<E>,
     params: &E::Params
-) -> Result<(), SynthesisError>
+) -> Result<([AllocatedNum<E>; 2], [AllocatedNum<E>; 2]), SynthesisError>
     where CS: ConstraintSystem<E>
 {
     let fee = E::Fr::one();
@@ -172,20 +157,19 @@ pub fn transfer<E: JubjubEngine, CS>(
             params)
     }).collect::<Result<Vec<_>,_>>()?;
 
-    for i in 0..1 {
-        let nf = nullifier(
-            cs.namespace(|| format!("compute nullifier for {} input", i)), 
-            &in_hash[i],
-            &sk_bits, 
-            params)?;
-        
-        cs.enforce(
-            || format!("checking nullifier for {} input", i), 
-            |lc| lc + nf.get_variable(), 
-            |lc| lc + CS::one(),
-            |lc| lc + in_nullifier[i].get_variable()
-        );
+    let out_hash = (0..1).map(|i| note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params))
+        .collect::<Result<ArrayVec<[AllocatedNum<E>;2]>, SynthesisError>>()?;
+    
+    let nf = (0..1).map(|i| nullifier(
+        cs.namespace(|| format!("compute nullifier for {} input", i)), 
+        &in_hash[i],
+        &sk_bits, 
+        params))
+        .collect::<Result<ArrayVec<[AllocatedNum<E>;2]>, SynthesisError>>()?;
+    
 
+    for i in 0..1 {
+        
         
         cs.enforce(
             || format!("cheking ownership for {} input", i),
@@ -198,16 +182,6 @@ pub fn transfer<E: JubjubEngine, CS>(
             |lc| lc + root_hash.get_variable() - in_root[i].get_variable(), 
             |lc| lc + in_note[i].amount.get_variable() + in_note[i].native_amount.get_variable(), 
             |lc| lc);
-
-        
-        let out_hash_cmp = note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params)?;
-        
-        cs.enforce(
-            || format!("cheking hash for {} output", i),
-            |lc| lc + out_hash[i].get_variable(),
-            |lc| lc + CS::one(),
-            |lc| lc + out_hash_cmp.get_variable()
-        );
 
 
         cs.enforce(
@@ -236,7 +210,10 @@ pub fn transfer<E: JubjubEngine, CS>(
 
     (Num::zero() + in_hash[0].clone() - in_hash[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"))?;
     
-    Ok(())
+    let out_hash = out_hash.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
+    let nf = nf.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
+
+    Ok((out_hash, nf))
 }
 
 #[cfg(test)]

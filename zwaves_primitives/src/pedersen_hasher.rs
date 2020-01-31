@@ -60,7 +60,7 @@ pub fn update_merkle_proof<E:JubjubEngine>(sibling: &[E::Fr], index: u64, leaf: 
         return None;
     }
 
-    if index2 > u64::pow(2, proofsz as u32) {
+    if index2 >= u64::pow(2, proofsz as u32) {
         return None;
     }
 
@@ -115,7 +115,7 @@ pub fn update_merkle_proof<E:JubjubEngine>(sibling: &[E::Fr], index: u64, leaf: 
             } 
 
             sibling2_i = offset + (((index2 >> i) ^ 0x1) - (index >> i)) as usize;
-            sibling2.push(if sibling2_i >= buffsz { defaults[0] } else { buff[sibling2_i] }  );
+            sibling2.push(if sibling2_i >= buffsz { defaults[i] } else { buff[sibling2_i] }  );
         });
     }
 

@@ -18,7 +18,7 @@ use zwaves_primitives::fieldtools;
 use blake2_rfc::blake2s::Blake2s;
 use byteorder::{LittleEndian, WriteBytesExt};
 use itertools::Itertools;
-
+use arrayvec::ArrayVec;
 
 const MERKLE_PROOF_LEN:usize = 48;
 
@@ -84,6 +84,69 @@ impl <'a, E: JubjubEngine> Circuit<E> for Deposit<'a, E> {
     }
 }
 
+
+/*
+    mut cs: CS,
+    in_note: [Note<E>; 2],
+    in_nullifier: [AllocatedNum<E>; 2],
+    in_proof: [&[(AllocatedNum<E>, Boolean)]; 2],
+
+    out_hash: [AllocatedNum<E>; 2],
+    out_note: [Note<E>; 2],
+
+    root_hash: AllocatedNum<E>,
+    sk: AllocatedNum<E>,
+    params: &E::Params
+*/
+
+
+#[derive(Clone)]
+pub struct Transfer<'a, E: JubjubEngine> {
+    pub in_note: [Option<NoteData<E>>; 2],
+    pub out_note: [Option<NoteData<E>>; 2],
+  
+    pub in_proof: [Option<Vec<Fr>>; 2],
+    
+    pub root_hash: Option<Fr>,
+    pub sk: Option<Fr>,
+
+    pub params: &'a E::Params
+}
+/*
+impl <'a, E: JubjubEngine> Circuit<E> for Transfer<'a, E> {
+    fn synthesize<CS: ConstraintSystem<E>>(
+        self,
+        cs: &mut CS
+    ) -> Result<(), SynthesisError>
+    {
+        let in_note = (0..1).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.in_note[i].clone()))
+            .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
+
+        let out_note = (0..1).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.out_note[i].clone()))
+            .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
+
+        let in_proof =(0..1).map(|i| 
+                self.in_proof[i].iter().map(|n| AllocatedNum::alloc(cs.namespace(|| "alloc asset_id"), || Ok(n.clone())))
+                .collect::<Result<Vec<_>,_>>()
+            ).collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
+        
+        let (out_hash, nf) = transactions::transfer::<Bls12, _>(cs.namespace(||"transfer circuit"),
+            in_note, out_note, in_proof, self.rootHash, self.sk, self.params)?;
+        
+        for i in 0..1 {
+            out_hash[i].inputize(cs.namespace(|| format!("inputize out_hash[{}]", i) ))?;
+        }
+
+        for i in 0..1 {
+            out_hash[i].inputize(cs.namespace(|| format!("inputize nullifier[{}]", i) ))?;
+        }
+
+        Ok(())
+
+    }
+
+}
+*/
 
 #[cfg(test)]
 mod circuit_test {
@@ -173,52 +236,3 @@ mod circuit_test {
 
 }
 
-
-
-#[derive(Clone)]
-pub struct TransferData<E: JubjubEngine> {
-    pub in_note: [NoteData<E>; 2],
-    pub in_nullifier: [E::Fr; 2],
-    pub in_proof: [([E::Fr; MERKLE_PROOF_LEN], u64); 2],
-    pub out_note: [NoteData<E>; 2],
-    pub sk: E::Fr
-}
-
-#[derive(Clone)]
-pub struct Transfer<E: JubjubEngine> {
-    pub data: Option<TransferData<E>>,
-    pub params: Box<E::Params>
-}
-
-
-impl <E: JubjubEngine> Circuit<E> for Transfer<E> {
-    fn synthesize<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS
-    ) -> Result<(), SynthesisError>
-    {
-        let in_note = match self.data {
-            Some(ref data) => [
-                alloc_note_data(cs.namespace(|| "alloc in_note[0]"), Some(data.in_note[0].clone())).unwrap(),
-                alloc_note_data(cs.namespace(|| "alloc in_note[1]"), Some(data.in_note[1].clone())).unwrap()
-            ],
-            None => [
-                alloc_note_data(cs.namespace(|| "alloc in_note[0]"), None).unwrap(),
-                alloc_note_data(cs.namespace(|| "alloc in_note[1]"), None).unwrap()
-            ]
-        };
-
-        let out_note = match self.data {
-            Some(ref data) => [
-                alloc_note_data(cs.namespace(|| "alloc out_note[0]"), Some(data.out_note[0].clone())).unwrap(),
-                alloc_note_data(cs.namespace(|| "alloc out_note[1]"), Some(data.out_note[1].clone())).unwrap()
-            ],
-            None => [
-                alloc_note_data(cs.namespace(|| "alloc out_note[0]"), None).unwrap(),
-                alloc_note_data(cs.namespace(|| "alloc out_note[1]"), None).unwrap()
-            ]
-        };
-
-        Ok(())
-    }
-}

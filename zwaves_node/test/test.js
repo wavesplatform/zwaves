@@ -42,7 +42,8 @@ let note = {
 
 
 let proof = native.deposit(mpc_params, bufferizeBigints(note));
+console.log("Proof: ", proof);
 let hash = native.noteHash(bufferizeBigints(note));
-
+console.log("UTXO hash: ", hash);
 let verify_result = native.verify(mpc_params, proof, bufferizeBigints([hash, note.asset_id, note.amount, note.native_amount]));
-console.log(verify_result);
+console.log("Verifier result", verify_result);
