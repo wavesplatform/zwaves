@@ -9,6 +9,8 @@ extern crate zwaves_primitives;
 extern crate phase2;
 extern crate rand;
 
+pub mod helpers;
+
 use neon::prelude::*;
 
 use pairing::bls12_381::{Fr, Bls12};
@@ -34,35 +36,9 @@ use zwaves_primitives::fieldtools::fr_to_repr_bool;
 use zwaves_primitives::serialization::read_fr_repr_be;
 use arrayvec::ArrayVec;
 
-
-lazy_static! {
-    static ref jubjub_params : JubjubBls12 = JubjubBls12::new();
-}
-
-pub fn buf_copy_from_slice(cx: &FunctionContext, source: &[u8], buf: &mut Handle<JsBuffer>) {
-    cx.borrow_mut(buf, |data| {
-        data.as_mut_slice().copy_from_slice(source);
-    });
-}
-
-pub fn read_obj_fr(cx: &mut FunctionContext, obj: Handle<JsObject>, key: &str) -> NeonResult<Fr> {
-    let value = obj.get(cx, key)?;
-    read_val_fr(cx, value)
-}
-
-pub fn read_val_fr(cx: &mut FunctionContext, val: Handle<JsValue>) -> NeonResult<Fr> {
-    let buff_field = val.downcast::<JsBuffer>().map_err(|_| cx.throw_error::<_,Fr>("could not downcast value to Buffer").unwrap_err())?;
-    let buff_field_slice = cx.borrow(&buff_field, |data| data.as_slice());
-    let repr = read_fr_repr_be::<Fr>(buff_field_slice).map_err(|_| cx.throw_error::<_,Fr>("Buffer must be uint256 BE number").unwrap_err())?;
-    Fr::from_repr(repr).map_err(|_| cx.throw_error::<_,Fr>("Wrong field element").unwrap_err())
-}
+use crate::helpers::*;
 
 
-pub fn read_buf_fr(cx: &mut FunctionContext, buff_field: Handle<JsBuffer>) -> NeonResult<Fr> {
-    let buff_field_slice = cx.borrow(&buff_field, |data| data.as_slice());
-    let repr = read_fr_repr_be::<Fr>(buff_field_slice).map_err(|_| cx.throw_error::<_,Fr>("Buffer must be uint256 BE number").unwrap_err())?;
-    Fr::from_repr(repr).map_err(|_| cx.throw_error::<_,Fr>("Wrong field element").unwrap_err())
-}
 
 
 
@@ -89,40 +65,46 @@ pub fn verify(mut cx: FunctionContext) -> JsResult<JsBoolean> {
 
 }
 
-pub fn parse_note_data(cx: &mut FunctionContext, note_obj:Handle<JsObject>) -> NeonResult<NoteData<Bls12>> {
-    Ok(NoteData::<Bls12> {
-        asset_id: read_obj_fr(cx, note_obj, "asset_id")?,
-        amount: read_obj_fr(cx, note_obj, "amount")?,
-        native_amount: read_obj_fr(cx, note_obj, "native_amount")?,
-        txid: read_obj_fr(cx, note_obj, "txid")?,
-        owner: read_obj_fr(cx, note_obj, "owner")?
-    })
-}
 
-pub fn fr_to_js<'a>(cx: &mut FunctionContext<'a>, fr: &Fr) -> JsResult<'a, JsBuffer> {
-    let mut buff = Cursor::new(Vec::<u8>::new());
-    fr.into_repr().write_be(&mut buff).unwrap();
-
-    let mut hash_js_buf = JsBuffer::new(cx, buff.get_ref().len() as u32)?;
-    buf_copy_from_slice(cx, buff.get_ref(), &mut hash_js_buf);
-    Ok(hash_js_buf)
-}
-
-pub fn proof_to_js<'a>(cx: &mut FunctionContext<'a>, proof: &Proof<Bls12>) -> JsResult<'a, JsBuffer> {
-    let mut proof_cur = Cursor::new(Vec::<u8>::new());
-    proof.write(&mut proof_cur).unwrap();
-    let mut proof_js_buf = JsBuffer::new(cx, proof_cur.get_ref().len() as u32)?;
-    buf_copy_from_slice(cx, proof_cur.get_ref(), &mut proof_js_buf);
-    Ok(proof_js_buf)
-}
 
 pub fn note_hash(mut cx: FunctionContext) ->JsResult<JsBuffer> {
     let note_obj : Handle<JsObject> = cx.argument(0)?;
     let note = parse_note_data(&mut cx, note_obj)?;
     
-    let hash = zwaves_primitives::transactions::note_hash(&note, &jubjub_params);
+    let hash = zwaves_primitives::transactions::note_hash(&note, &JUBJUB_PARAMS);
     fr_to_js(&mut cx, &hash)
 }
+
+pub fn nullifier(mut cx: FunctionContext) ->JsResult<JsBuffer> {
+    let note_hash : Handle<JsBuffer> = cx.argument(0)?;
+    let note_hash = read_buf_fr(&mut cx, note_hash)?;
+    let sk : Handle<JsBuffer> = cx.argument(1)?;
+    let sk = read_buf_fr(&mut cx, sk)?;
+    let nf = zwaves_primitives::transactions::nullifier::<Bls12>(&note_hash, &sk, &JUBJUB_PARAMS);
+    fr_to_js(&mut cx, &nf)
+}
+
+pub fn pubkey(mut cx: FunctionContext) ->JsResult<JsBuffer> {
+    let sk : Handle<JsBuffer> = cx.argument(0)?;
+    let sk = read_buf_fr(&mut cx, sk)?;
+    let nf = zwaves_primitives::transactions::pubkey::<Bls12>(&sk, &JUBJUB_PARAMS);
+    fr_to_js(&mut cx, &nf)
+}
+
+pub fn edh(mut cx: FunctionContext) ->JsResult<JsBuffer> {
+    let pk : Handle<JsBuffer> = cx.argument(0)?;
+    let pk = read_buf_fr(&mut cx, pk)?;
+    let sk : Handle<JsBuffer> = cx.argument(1)?;
+    let sk = read_buf_fr(&mut cx, sk)?;
+    let nf = zwaves_primitives::transactions::edh::<Bls12>(&pk, &sk, &JUBJUB_PARAMS).ok_or(()).or_else(|_| cx.throw_error("Not an elliptic curve point"))?;
+    fr_to_js(&mut cx, &nf)
+}
+
+
+
+
+
+
 
 
 pub fn deposit(mut cx: FunctionContext) -> JsResult<JsBuffer> {
@@ -137,7 +119,7 @@ pub fn deposit(mut cx: FunctionContext) -> JsResult<JsBuffer> {
     let note = parse_note_data(&mut cx, note_obj)?;
 
     let c = Deposit::<Bls12> {
-        params: &jubjub_params,
+        params: &JUBJUB_PARAMS,
         data: Some(note)
     };
 
@@ -149,54 +131,32 @@ pub fn deposit(mut cx: FunctionContext) -> JsResult<JsBuffer> {
 
 
 pub fn parse_transfer(cx: &mut FunctionContext, transfer_obj:Handle<JsObject>) -> NeonResult<Transfer<'static, Bls12>> {
-    let in_note = transfer_obj.get(cx, "in_note")?;
-    let in_note = in_note.downcast::<JsArray>()
-        .map_err(|_| cx.throw_error::<_,Fr>("Could not downcast in_note to Array").unwrap_err())?
-        .to_vec(cx)?;
-    if in_note.len()!= 2 {
-        return cx.throw_error("in_note length should be 2");
-    }
-    let in_note = in_note.into_iter().map(|item| {
-        let item = item.downcast::<JsObject>().map_err(|_| cx.throw_error::<_,Fr>("could not downcast value to Object").unwrap_err())?;
-        parse_note_data(cx, item).map(|e| Some(e))
-    }).collect::<NeonResult<ArrayVec<[Option<NoteData<Bls12>>;2]>>>()?.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
 
-    let out_note = transfer_obj.get(cx, "out_note")?;
-    let out_note = out_note.downcast::<JsArray>()
-        .map_err(|_| cx.throw_error::<_,Fr>("Could not downcast in_note to Array").unwrap_err())?
-        .to_vec(cx)?;
-    if out_note.len()!= 2 {
-        return cx.throw_error("out_note length should be 2");
-    }
-    let out_note = out_note.into_iter().map(|item| {
-        let item = item.downcast::<JsObject>().map_err(|_| cx.throw_error::<_,Fr>("could not downcast value to Object").unwrap_err())?;
+    let in_note = transfer_obj.get(cx, "in_note")?;
+    let in_note = parse_pair::<JsObject>(cx, in_note)?;
+    let in_note = in_note.iter().map(|&item| {
         parse_note_data(cx, item).map(|e| Some(e))
-    }).collect::<NeonResult<ArrayVec<[Option<NoteData<Bls12>>;2]>>>()?.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
+    }).collect::<NeonResult<ArrayVec<[Option<NoteData<Bls12>>;2]>>>()?.into_inner().map_err(|_| neon::result::Throw )?;
+    
+    let out_note = transfer_obj.get(cx, "out_note")?;
+    let out_note = parse_pair::<JsObject>(cx, out_note)?;
+    let out_note = out_note.iter().map(|&item| {
+        parse_note_data(cx, item).map(|e| Some(e))
+    }).collect::<NeonResult<ArrayVec<[Option<NoteData<Bls12>>;2]>>>()?.into_inner().map_err(|_| neon::result::Throw )?;
+    
 
     let in_index = transfer_obj.get(cx, "in_proof_index")?;
-    let in_index = in_index.downcast::<JsArray>()
-        .map_err(|_| cx.throw_error::<_,Fr>("Could not downcast in_note to Array").unwrap_err())?
-        .to_vec(cx)?;
-        if in_index.len()!= 2 {
-        return cx.throw_error("in_proof_index length should be 2");
-    }
-
-    let in_index = in_index.into_iter().map(|item| {
-        read_val_fr(cx, item)
-    }).collect::<NeonResult<ArrayVec<[Fr;2]>>>()?.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
+    let in_index = parse_pair::<JsBuffer>(cx, in_index)?;
+    let in_index = in_index.iter().map(|&item| {
+        read_buf_fr(cx, item)
+    }).collect::<NeonResult<ArrayVec<[Fr;2]>>>()?.into_inner().map_err(|_| neon::result::Throw )?;
     
     
     let in_proof = transfer_obj.get(cx, "in_proof_sibling")?;
-    let in_proof = in_proof.downcast::<JsArray>()
-        .map_err(|_| cx.throw_error::<_,Fr>("Could not downcast in_note to Array").unwrap_err())?
-        .to_vec(cx)?;
-    if in_proof.len()!= 2 {
-        return cx.throw_error("in_proof_sibling length should be 2");
-    }
+    let in_proof = parse_pair::<JsArray>(cx, in_proof)?;
 
-    let in_proof = in_proof.into_iter().zip(in_index.into_iter()).map(|(item, index)| {
-        let item = item.downcast::<JsArray>().map_err(|_| cx.throw_error::<_,Fr>("could not downcast value to Object").unwrap_err())?
-            .to_vec(cx)?;
+    let in_proof = in_proof.iter().zip(in_index.iter()).map(|(&item, &index)| {
+        let item = item.to_vec(cx)?;
         if item.len() != MERKLE_PROOF_LEN {
             return cx.throw_error(format!("Merkle proof length should be {}.", MERKLE_PROOF_LEN));
         }
@@ -219,7 +179,7 @@ pub fn parse_transfer(cx: &mut FunctionContext, transfer_obj:Handle<JsObject>) -
         in_proof,
         root_hash,
         sk,
-        params: &jubjub_params
+        params: &JUBJUB_PARAMS
     })
 }
 
@@ -248,7 +208,7 @@ pub fn merkle_hash(mut cx: FunctionContext) -> JsResult<JsBuffer> {
     if n.fract() != 0.0 {
         return cx.throw_error("3rd parameter should be integer");
     }
-    let hash = zwaves_primitives::pedersen_hasher::compress::<Bls12>(&left, &right, Personalization::MerkleTree(n.round() as usize), &jubjub_params);
+    let hash = zwaves_primitives::pedersen_hasher::compress::<Bls12>(&left, &right, Personalization::MerkleTree(n.round() as usize), &JUBJUB_PARAMS);
     fr_to_js(&mut cx, &hash)
 }
 
@@ -259,6 +219,8 @@ register_module!(mut cx, {
     cx.export_function("deposit", deposit)?;
     cx.export_function("transfer", deposit)?;    
     cx.export_function("merkleHash", merkle_hash)?;
+    cx.export_function("nullifier", nullifier)?;
+    cx.export_function("edh", edh)?;
     cx.export_function("noteHash", note_hash)
     
 });

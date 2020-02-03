@@ -2,7 +2,7 @@ let native = require("../lib/index.js");
 let {toBufferBE} = require("bigint-buffer");
 
 let fs = require("fs");
-let mpc_params = fs.readFileSync("../zwaves_setup/mpc_params");
+let mpc_params = fs.readFileSync("../zwaves_setup/mpc_params_deposit");
 
 
 function objectMap(object, mapFn) {

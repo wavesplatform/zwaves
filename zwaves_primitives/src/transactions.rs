@@ -3,6 +3,8 @@ use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12, FixedGener
 use pairing::{PrimeField, PrimeFieldRepr};
 use sapling_crypto::constants;
 use sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
+use sapling_crypto::jubjub::edwards::{Point};
+use sapling_crypto::jubjub::{PrimeOrder, Unknown};
 use crate::fieldtools;
 use blake2_rfc::blake2s::Blake2s;
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -31,6 +33,15 @@ pub fn note_hash<E: JubjubEngine>(data: &NoteData<E>, params: &E::Params) -> E::
     pedersen_hash::<E, _>(Personalization::NoteCommitment, total_bits.into_iter(), &params).into_xy().0
 }
 
+pub fn pubkey<E: JubjubEngine>(sk: &E::Fr, params: &E::Params) -> E::Fr {
+    params.generator(FixedGenerators::SpendingKeyGenerator).mul(fieldtools::f2f::<E::Fr, E::Fs>(sk), params).into_xy().0
+}
+
+pub fn edh<E: JubjubEngine>(pk_x: &E::Fr, sk: &E::Fr, params: &E::Params) -> Option<E::Fr> {
+    let p = Point::<E, Unknown>::get_for_x(pk_x.clone(), params)?;
+    Some(p.mul(fieldtools::f2f::<E::Fr, E::Fs>(sk), params).into_xy().0)
+}
+
 pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr, params: &E::Params) -> E::Fr {
     
     let sk_multiplied = params.generator(FixedGenerators::ProofGenerationKey).mul(fieldtools::f2f::<E::Fr, E::Fs>(sk), params).into_xy().0;
@@ -52,4 +63,3 @@ pub fn nullifier<E: JubjubEngine>(note_hash: &E::Fr, sk: &E::Fr, params: &E::Par
 
     fieldtools::affine(res)
 }
-

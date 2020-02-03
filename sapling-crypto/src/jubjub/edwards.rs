@@ -116,6 +116,64 @@ impl<E: JubjubEngine> Point<E, Unknown> {
         }
     }
 
+    pub fn get_for_x(x: E::Fr, params: &E::Params) -> Option<Self>
+    {
+        // Given a y on the curve, y^2 = - (x^2 + 1) / (dx^2 - 1)
+
+
+        // tmp1 = x^2
+        let mut tmp1 = x;
+        tmp1.square();
+
+        // tmp2 = (x^2 * d) - 1
+        let mut tmp2 = tmp1;
+        tmp2.mul_assign(params.edwards_d());
+        tmp2.sub_assign(&E::Fr::one());
+
+        // tmp1 = -x^2 - 1
+        tmp1.negate();
+        tmp1.sub_assign(&E::Fr::one());
+
+        match tmp2.inverse() {
+            Some(tmp2) => {
+                // tmp1 = (- x^2 - 1) / (dx^2 - 1)
+                tmp1.mul_assign(&tmp2);
+
+                match tmp1.sqrt() {
+                    Some(mut y) => {
+                        let mut t = x;
+                        t.mul_assign(&y);
+
+                        let p = Point {
+                            x: x,
+                            y: y,
+                            t: t,
+                            z: E::Fr::one(),
+                            _marker: PhantomData
+                        };
+
+                        if p.mul(E::Fs::char(), params) == Point::zero() {
+                            return Some(p);
+                        } else {
+                            t.negate();
+                            y.negate();
+                            return Some(Point {
+                                x: x,
+                                y: y,
+                                t: t,
+                                z: E::Fr::one(),
+                                _marker: PhantomData
+                            });
+                        }
+            
+                    },
+                    None => None
+                }
+            },
+            None => None
+        }
+    }
+
     pub fn get_for_y(y: E::Fr, sign: bool, params: &E::Params) -> Option<Self>
     {
         // Given a y on the curve, x^2 = (y^2 - 1) / (dy^2 + 1)
