@@ -2,6 +2,7 @@ use bellman::{Circuit, ConstraintSystem, SynthesisError};
 use sapling_crypto::jubjub::{JubjubEngine, JubjubParams, JubjubBls12};
 use sapling_crypto::circuit::{pedersen_hash};
 use sapling_crypto::circuit::num::{AllocatedNum, Num};
+use sapling_crypto::circuit::boolean::{Boolean, AllocatedBit};
 use bellman::groth16::{Proof, generate_random_parameters, prepare_verifying_key, create_random_proof, verify_proof};
 use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use pairing::{PrimeField, PrimeFieldRepr};
@@ -20,7 +21,8 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use itertools::Itertools;
 use arrayvec::ArrayVec;
 
-const MERKLE_PROOF_LEN:usize = 48;
+pub const MERKLE_PROOF_LEN:usize = 48;
+pub static FEE:&str = "1";
 
 
 
@@ -52,7 +54,28 @@ pub fn alloc_note_data<E: JubjubEngine, CS:ConstraintSystem<E>>(
         })
 }
 
-
+pub fn alloc_proof_data<E: JubjubEngine, CS:ConstraintSystem<E>>(
+    mut cs: CS, 
+    data: Option<Vec<(E::Fr, bool)>>) -> Result<Vec<(AllocatedNum<E>, Boolean)>, SynthesisError> {
+    Ok(match data {
+        Some(data) => {
+            data.iter().enumerate().map(|(i, (sibling, path))| 
+                (
+                    AllocatedNum::alloc(cs.namespace(|| format!("sibling[{}]", i)), || Ok(sibling.clone())).unwrap(),
+                    Boolean::Is(AllocatedBit::alloc(cs.namespace(|| format!("path[{}]", i)), Some(path.clone())).unwrap())
+                )
+            ).collect::<Vec<(AllocatedNum<E>, Boolean)>>()
+        },
+        None => {
+            (0..MERKLE_PROOF_LEN).map(|i| 
+                (
+                    AllocatedNum::alloc(cs.namespace(|| format!("sibling[{}]", i)), || Err(SynthesisError::AssignmentMissing)).unwrap(),
+                    Boolean::Is(AllocatedBit::alloc(cs.namespace(|| format!("path[{}]", i)), None).unwrap())
+                )
+            ).collect::<Vec<(AllocatedNum<E>, Boolean)>>()
+        }
+    })
+}
 
 
 
@@ -105,48 +128,57 @@ pub struct Transfer<'a, E: JubjubEngine> {
     pub in_note: [Option<NoteData<E>>; 2],
     pub out_note: [Option<NoteData<E>>; 2],
   
-    pub in_proof: [Option<Vec<Fr>>; 2],
+    pub in_proof: [Option<Vec<(E::Fr, bool)>>; 2],
     
-    pub root_hash: Option<Fr>,
-    pub sk: Option<Fr>,
+    pub root_hash: Option<E::Fr>,
+    pub sk: Option<E::Fr>,
 
     pub params: &'a E::Params
 }
-/*
+
+
 impl <'a, E: JubjubEngine> Circuit<E> for Transfer<'a, E> {
     fn synthesize<CS: ConstraintSystem<E>>(
         self,
         cs: &mut CS
     ) -> Result<(), SynthesisError>
     {
-        let in_note = (0..1).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.in_note[i].clone()))
+        let in_note = (0..2).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.in_note[i].clone()))
+            .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
+        
+        let out_note = (0..2).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data out_note[{}]", i)), self.out_note[i].clone()))
             .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
 
-        let out_note = (0..1).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.out_note[i].clone()))
-            .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
+        let in_proof = (0..2).map(|i| alloc_proof_data(cs.namespace(|| format!("alloc proof data in_proof[{}]", i)), self.in_proof[i].clone()))
+        .collect::<Result<ArrayVec<[Vec<(AllocatedNum<E>, Boolean)>;2]>, SynthesisError>>()?;
 
-        let in_proof =(0..1).map(|i| 
-                self.in_proof[i].iter().map(|n| AllocatedNum::alloc(cs.namespace(|| "alloc asset_id"), || Ok(n.clone())))
-                .collect::<Result<Vec<_>,_>>()
-            ).collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
-        
-        let (out_hash, nf) = transactions::transfer::<Bls12, _>(cs.namespace(||"transfer circuit"),
-            in_note, out_note, in_proof, self.rootHash, self.sk, self.params)?;
-        
-        for i in 0..1 {
-            out_hash[i].inputize(cs.namespace(|| format!("inputize out_hash[{}]", i) ))?;
-        }
+        let root_hash = AllocatedNum::alloc(cs.namespace(|| "alloc root_hash"), || self.root_hash.ok_or(SynthesisError::AssignmentMissing))?;
+        let sk = AllocatedNum::alloc(cs.namespace(|| "alloc sk"), || self.sk.ok_or(SynthesisError::AssignmentMissing))?;
 
-        for i in 0..1 {
-            out_hash[i].inputize(cs.namespace(|| format!("inputize nullifier[{}]", i) ))?;
-        }
+        let fee = <E::Fr as PrimeField>::from_str(FEE).unwrap();
+        let (out_hash, nf) = transactions::transfer(cs.namespace(|| "transfer"),
+            &in_note,
+            &in_proof,
+            &out_note,
+            &root_hash,
+            &sk,
+            &fee,
+            self.params)?;
 
+        root_hash.inputize(cs.namespace(|| "root_hash inputize")).unwrap();
+
+        out_hash.iter().enumerate().for_each(|(i, n)| 
+            n.inputize(cs.namespace(|| format!("inputize out_hash[{}]", i))).unwrap()
+        );
+
+        nf.iter().enumerate().for_each(|(i, n)| 
+            n.inputize(cs.namespace(|| format!("inputize nf[{}]", i))).unwrap()
+        );
         Ok(())
-
     }
 
 }
-*/
+
 
 #[cfg(test)]
 mod circuit_test {

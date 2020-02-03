@@ -25,3 +25,4 @@ zwaves_circuit = {path = "../../zwaves_circuit"}
 pairing = "0.14"
 phase2 = "0.2.2"
 lazy_static = "1.4.0"
+arrayvec = "0.5.1"

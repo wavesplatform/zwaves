@@ -129,38 +129,40 @@ pub fn nullifier<E: JubjubEngine, CS>(
 
 pub fn transfer<E: JubjubEngine, CS>(
     mut cs: CS,
-    in_note: [Note<E>; 2],
-    in_proof: [&[(AllocatedNum<E>, Boolean)]; 2],
-
-    out_note: [Note<E>; 2],
-
-    root_hash: AllocatedNum<E>,
-    sk: AllocatedNum<E>,
+    in_note: &[Note<E>],
+    in_proof: &[Vec<(AllocatedNum<E>, Boolean)>],
+    out_note: &[Note<E>],
+    root_hash: &AllocatedNum<E>,
+    sk: &AllocatedNum<E>,
+    fee: &E::Fr,
     params: &E::Params
-) -> Result<([AllocatedNum<E>; 2], [AllocatedNum<E>; 2]), SynthesisError>
+) -> Result<(ArrayVec<[AllocatedNum<E>; 2]>, ArrayVec<[AllocatedNum<E>; 2]>), SynthesisError>
     where CS: ConstraintSystem<E>
 {
-    let fee = E::Fr::one();
-
+    assert!(in_note.len()==2, "in_note length should be equal 2");
+    assert!(in_proof.len()==2, "in_proof length should be equal 2");
+    assert!(out_note.len()==2, "out_note length should be equal 2");
+    assert!(in_proof[0].len() == in_proof[1].len(), "vectors in proof should be the same length");
+    
     let sk_bits = sk.into_bits_le_strict(cs.namespace(|| "bitify sk"))?;
     let pk = pubkey(cs.namespace(|| "pubkey compute"), &sk_bits, params)?;
 
-    let in_hash : Vec<_> = (0..1).map(|i| {
+    let in_hash : Vec<_> = (0..2).map(|i| {
         note_hash(cs.namespace(|| format!("hashing {} input", i)), &in_note[i], params).unwrap()
     }).collect();
 
-    let in_root = (0..1).map( |i| {
+    let in_root = (0..2).map( |i| {
         merkle_proof::merkle_proof(
             cs.namespace(|| format!("compute merkle proof for {} input", i)), 
-            in_proof[i], 
+            &in_proof[i], 
             &in_hash[i], 
             params)
     }).collect::<Result<Vec<_>,_>>()?;
 
-    let out_hash = (0..1).map(|i| note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params))
+    let out_hash = (0..2).map(|i| note_hash(cs.namespace(|| format!("hashing {} output", i)), &out_note[i], params))
         .collect::<Result<ArrayVec<[AllocatedNum<E>;2]>, SynthesisError>>()?;
     
-    let nf = (0..1).map(|i| nullifier(
+    let nf = (0..2).map(|i| nullifier(
         cs.namespace(|| format!("compute nullifier for {} input", i)), 
         &in_hash[i],
         &sk_bits, 
@@ -168,7 +170,7 @@ pub fn transfer<E: JubjubEngine, CS>(
         .collect::<Result<ArrayVec<[AllocatedNum<E>;2]>, SynthesisError>>()?;
     
 
-    for i in 0..1 {
+    for i in 0..2 {
         
         
         cs.enforce(
@@ -197,7 +199,7 @@ pub fn transfer<E: JubjubEngine, CS>(
         || "verification of native amount sum",
         |lc| lc + in_note[0].native_amount.get_variable() + in_note[1].native_amount.get_variable(),
         |lc| lc + CS::one(),
-        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable() + (fee, CS::one())
+        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable() + (fee.clone(), CS::one())
     );
 
 
@@ -210,8 +212,6 @@ pub fn transfer<E: JubjubEngine, CS>(
 
     (Num::zero() + in_hash[0].clone() - in_hash[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"))?;
     
-    let out_hash = out_hash.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
-    let nf = nf.into_inner().unwrap_or_else(|_| panic!("Array was not completely filled"));
 
     Ok((out_hash, nf))
 }
