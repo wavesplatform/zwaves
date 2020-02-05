@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 pub mod pedersen_hasher;
 pub mod circuit;
 pub mod verifier;

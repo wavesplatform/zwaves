@@ -7,11 +7,12 @@ let mpc_params = fs.readFileSync("../zwaves_setup/mpc_params_deposit");
 
 function objectMap(object, mapFn) {
     return Object.keys(object).reduce(function(result, key) {
-      result[key] = mapFn(object[key])
-      return result
+        result[key] = mapFn(object[key])
+        return result
     }, {})
-  }
-  
+}
+
+
 
 function bufferizeBigints(o) {
     if (o instanceof Buffer) { 

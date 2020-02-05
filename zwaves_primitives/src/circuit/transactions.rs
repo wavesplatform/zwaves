@@ -13,6 +13,7 @@ use crate::circuit::bitify::{from_bits_le_to_num_limited, from_bits_le_to_num};
 use crate::circuit::{merkle_proof};
 
 use arrayvec::ArrayVec;
+use std::ops::{Add, Sub};
 
 pub struct Note<E: JubjubEngine> {
     pub asset_id: AllocatedNum<E>,       // 64 bits
@@ -33,11 +34,39 @@ where CS: ConstraintSystem<E>
 
     let asset_id = from_bits_le_to_num_limited(cs.namespace(|| "preparing asset_id"), &packed_asset_bits[0..64], 64)?;
     let amount = from_bits_le_to_num_limited(cs.namespace(|| "preparing amount"), &packed_asset_bits[64..128], 64)?;
-    let native_amount = from_bits_le_to_num_limited(cs.namespace(|| "preparing native_amount"), &packed_asset_bits[128..196], 64)?;
+    let native_amount = from_bits_le_to_num_limited(cs.namespace(|| "preparing native_amount"), &packed_asset_bits[128..192], 64)?;
 
     Ok((asset_id, amount, native_amount))
 }
 
+
+
+pub fn signed_asset_unpack<E: JubjubEngine, CS>(
+    mut cs: CS,
+    packed_asset: &AllocatedNum<E>
+) -> Result<(AllocatedNum<E>, AllocatedNum<E>, AllocatedNum<E>), SynthesisError>
+where CS: ConstraintSystem<E>
+{
+
+    let packed_asset_bits = packed_asset.into_bits_le_limited(cs.namespace(|| "bitify packed_asset"), 192)?;
+
+    let asset_id = from_bits_le_to_num_limited(cs.namespace(|| "preparing asset_id"), &packed_asset_bits[0..64], 64)?;
+    let amount = from_bits_le_to_num_limited(cs.namespace(|| "preparing amount"), &packed_asset_bits[64..128], 64)?;
+    let native_amount = from_bits_le_to_num_limited(cs.namespace(|| "preparing native_amount"), &packed_asset_bits[128..192], 64)?;
+
+    let minus_64_num = E::Fr::from_str("52435875175126190479447740508185965837690552500527637822585211955864871632897").unwrap();
+
+    let mut signed_amount_num = Num::<E>::zero();
+    signed_amount_num = signed_amount_num.add_bool_with_coeff(CS::one(), &packed_asset_bits[127], minus_64_num) + amount;
+    let signed_amont = AllocatedNum::alloc(cs.namespace(|| "alloc signed amount"), || signed_amount_num.get_value().ok_or(SynthesisError::AssignmentMissing))?;
+
+
+    let mut signed_native_amount_num = Num::<E>::zero();
+    signed_native_amount_num = signed_native_amount_num.add_bool_with_coeff(CS::one(), &packed_asset_bits[191], minus_64_num) + native_amount;
+    let signed_native_amount = AllocatedNum::alloc(cs.namespace(|| "alloc signed native_amount"), || signed_native_amount_num.get_value().ok_or(SynthesisError::AssignmentMissing))?;
+
+    Ok((asset_id, signed_amont, signed_native_amount))
+}
 
 pub fn note_hash<E: JubjubEngine, CS>(
     mut cs: CS,
@@ -134,7 +163,7 @@ pub fn transfer<E: JubjubEngine, CS>(
     out_note: &[Note<E>],
     root_hash: &AllocatedNum<E>,
     sk: &AllocatedNum<E>,
-    fee: &E::Fr,
+    packed_asset: &AllocatedNum<E>,
     params: &E::Params
 ) -> Result<(ArrayVec<[AllocatedNum<E>; 2]>, ArrayVec<[AllocatedNum<E>; 2]>), SynthesisError>
     where CS: ConstraintSystem<E>
@@ -179,11 +208,12 @@ pub fn transfer<E: JubjubEngine, CS>(
             |lc| lc + CS::one(),
             |lc| lc + pk.get_variable()
         );
+        
         cs.enforce(
             || format!("verification of root for {} input", i), 
             |lc| lc + root_hash.get_variable() - in_root[i].get_variable(), 
             |lc| lc + in_note[i].amount.get_variable() + in_note[i].native_amount.get_variable(), 
-            |lc| lc);
+            |lc| lc); 
 
 
         cs.enforce(
@@ -194,23 +224,39 @@ pub fn transfer<E: JubjubEngine, CS>(
         );
     }
 
+    let (asset_id, asset_amount, asset_native_amount) = signed_asset_unpack(cs.namespace(|| "unpacking asset"), packed_asset)?;
+
+    cs.enforce(
+        || "check asset_id must be the same as for first input and output for nonzero asset_amount", 
+        |lc| lc + in_note[0].asset_id.get_variable() - asset_id.get_variable(), 
+        |lc| lc + asset_amount.get_variable(), 
+        |lc| lc
+    );
+    
 
     cs.enforce(
         || "verification of native amount sum",
-        |lc| lc + in_note[0].native_amount.get_variable() + in_note[1].native_amount.get_variable(),
+        |lc| lc + in_note[0].native_amount.get_variable() + in_note[1].native_amount.get_variable() + asset_native_amount.get_variable(),
         |lc| lc + CS::one(),
-        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable() + (fee.clone(), CS::one())
+        |lc| lc + out_note[0].native_amount.get_variable() + out_note[1].native_amount.get_variable()
     );
 
 
     cs.enforce(
-        || "verification of first elements amount sum in case with different amount types",
-        |lc| lc + in_note[0].amount.get_variable() - out_note[0].amount.get_variable(),
+        || "verification of amount sum",
+        |lc| lc + in_note[0].amount.get_variable() + in_note[1].amount.get_variable() + asset_amount.get_variable(),
+        |lc| lc + CS::one(),
+        |lc| lc + out_note[0].amount.get_variable() + out_note[1].amount.get_variable()
+    );
+
+    cs.enforce(
+        || "verification of second elements amount sum in case with different amount types",
+        |lc| lc + in_note[1].amount.get_variable() - out_note[1].amount.get_variable(),
         |lc| lc + in_note[0].asset_id.get_variable() - in_note[1].asset_id.get_variable(),
         |lc| lc 
     );
 
-    (Num::zero() + in_hash[0].clone() - in_hash[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"))?;
+    (Num::zero() + nf[0].clone() - nf[1].clone()).assert_nonzero(cs.namespace(|| "doublespend protection"))?;
     
 
     Ok((out_hash, nf))

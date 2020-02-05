@@ -1,7 +1,0 @@
-remote:
-  host: "mainframer@build.novelblock.io"
-  push:
-    compression: 9
-  pull:
-    compression: 9
-

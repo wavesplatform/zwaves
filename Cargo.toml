@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "zwaves_wasm",
   "zwaves_primitives",
   "zwaves_circuit",
   "zwaves_jni",
