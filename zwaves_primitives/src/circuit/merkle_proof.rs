@@ -13,8 +13,8 @@ use sapling_crypto::circuit::boolean::{Boolean};
 pub fn compress<E: JubjubEngine, CS>(
     mut cs: CS,
     personalization: pedersen_hash::Personalization,
-    left:AllocatedNum<E>,
-    right:AllocatedNum<E>,
+    left:&AllocatedNum<E>,
+    right:&AllocatedNum<E>,
     params: &E::Params
 ) -> Result<AllocatedNum<E>, SynthesisError>
     where CS: ConstraintSystem<E>
@@ -53,7 +53,35 @@ pub fn merkle_proof<E: JubjubEngine, CS>(
         &cur_is_right
     )?;
 
-    cur = compress(cs.namespace(|| format!("Merkle hash layer [{}]", i)), pedersen_hash::Personalization::MerkleTree(i as usize), xl, xr, params)?;
+    cur = compress(cs.namespace(|| format!("Merkle hash layer [{}]", i)), pedersen_hash::Personalization::MerkleTree(i as usize), &xl, &xr, params)?;
   }
   Ok(cur)
+}
+
+
+pub fn merkle_proof_shifted<E: JubjubEngine, CS>(
+    mut cs: CS,
+    proof: &[(AllocatedNum<E>, Boolean)],
+    leaf: &AllocatedNum<E>,
+    shift: usize,
+    params: &E::Params
+) -> Result<AllocatedNum<E>, SynthesisError>
+where CS: ConstraintSystem<E>
+{
+    let mut cur : AllocatedNum<E> = leaf.clone();
+
+    for (i, e) in proof.into_iter().enumerate() {
+        let cur_is_right = e.1.clone();
+        let path_element = e.0.clone();
+
+        let (xl, xr) = AllocatedNum::conditionally_reverse(
+            cs.namespace(|| format!("conditional reversal of preimage [{}]", i)),
+            &cur,
+            &path_element,
+            &cur_is_right
+        )?;
+
+        cur = compress(cs.namespace(|| format!("Merkle hash layer [{}]", i)), pedersen_hash::Personalization::MerkleTree(i as usize + shift), &xl, &xr, params)?;
+    }
+    Ok(cur)
 }

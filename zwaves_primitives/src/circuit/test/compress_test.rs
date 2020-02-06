@@ -35,8 +35,8 @@ impl <E: JubjubEngine> Circuit<E> for CompressDemo<E> {
         let root_calculated = merkle_proof::compress(
             cs.namespace(|| "image_calculated <== merkle_proof(...)"),
             Personalization::NoteCommitment,
-            left,
-            right,
+            &left,
+            &right,
             &self.params
         )?.clone();
 

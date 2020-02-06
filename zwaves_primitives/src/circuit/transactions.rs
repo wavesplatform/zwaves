@@ -15,6 +15,7 @@ use crate::circuit::{merkle_proof};
 use arrayvec::ArrayVec;
 use std::ops::{Add, Sub};
 
+
 pub struct Note<E: JubjubEngine> {
     pub asset_id: AllocatedNum<E>,       // 64 bits
     pub amount: AllocatedNum<E>,        // 64 bits
@@ -155,6 +156,45 @@ pub fn nullifier<E: JubjubEngine, CS>(
 }
 
 
+pub fn utxo_accumulator<E: JubjubEngine, CS>(
+    mut cs: CS,
+    note_hashes: &[AllocatedNum<E>],
+    index: &AllocatedNum<E>,
+    old_proof: &[AllocatedNum<E>],
+    new_proof: &[AllocatedNum<E>],
+    params: &E::Params
+) -> Result<(AllocatedNum<E>, AllocatedNum<E>), SynthesisError>
+where CS: ConstraintSystem<E> {
+    assert!(note_hashes.len() == 2, "should be 2 utxo");
+    let prooflen = old_proof.len();
+    assert!(new_proof.len() == prooflen, "proof length should be equal");
+
+    let bits = index.into_bits_le_limited(cs.namespace(|| "bitify index"), prooflen+1)?;
+
+    let old_proof = old_proof.iter().zip(bits.iter().skip(1)).map(|(n,b)| (n.clone(), b.clone())).collect::<Vec<_>>();
+    let new_proof = new_proof.iter().zip(bits.iter().skip(1)).map(|(n,b)| (n.clone(), b.clone())).collect::<Vec<_>>();
+    
+
+    let twozeros = E::Fr::from_str("2844901669415300281300718346195343338354231404922385839670861864158643284316").unwrap();
+    let twozeros_num = AllocatedNum::alloc(cs.namespace(|| "alloc twozeros_num"), || Ok(twozeros))?;
+    cs.enforce(|| "enforce twozeros_num", |lc| lc + twozeros_num.get_variable(), |lc| lc+CS::one(), |lc| lc + (twozeros, CS::one()));
+
+    let old_root = merkle_proof::merkle_proof_shifted(
+        cs.namespace(|| "compute merkle proof"), 
+        &old_proof, &twozeros_num, 1, params)?;
+
+    let twonotes = merkle_proof::compress(cs.namespace(|| "compress utxo"), 
+        pedersen_hash::Personalization::MerkleTree(0), &note_hashes[0], &note_hashes[1], params)?;
+
+    let new_root = merkle_proof::merkle_proof_shifted(
+            cs.namespace(|| "compute merkle proof"), 
+            &new_proof, &twonotes, 1, params)?;
+    
+    
+
+    Ok((old_root, new_root))
+}
+
 
 pub fn transfer<E: JubjubEngine, CS>(
     mut cs: CS,
@@ -262,45 +302,3 @@ pub fn transfer<E: JubjubEngine, CS>(
     Ok((out_hash, nf))
 }
 
-#[cfg(test)]
-mod transactions_test {
-    use super::*;
-    use sapling_crypto::circuit::test::TestConstraintSystem;
-    use sapling_crypto::jubjub::{JubjubBls12, JubjubParams};
-    use pairing::bls12_381::{Bls12, Fr, FrRepr};
-    use rand::os::OsRng;
-    use rand::Rng;
-
-    use crate::fieldtools;
-
-    #[test]
-    fn test_nullifier() -> Result<(), SynthesisError> {
-        let rng = &mut OsRng::new().unwrap();
-        let params = JubjubBls12::new();
-
-
-        let mut cs = TestConstraintSystem::<Bls12>::new();
-
-        let nh = rng.gen::<Fr>();
-        let sk = rng.gen::<Fr>();
-
-
-        let nf = crate::transactions::nullifier::<Bls12>(&nh, &sk, &params);
-
-
-        let nh_a = AllocatedNum::alloc(cs.namespace(|| "var nh_a"), || Ok(nh))?;
-        let sk_a = AllocatedNum::alloc(cs.namespace(|| "var sk_a"), || Ok(sk))?;
-        let sk_bits = sk_a.into_bits_le_strict(cs.namespace(|| "var sk_bits"))?;
-
-        let nf_a = nullifier(&mut cs, &nh_a, &sk_bits, &params)?;
-
-        if !cs.is_satisfied() {
-            let not_satisfied = cs.which_is_unsatisfied().unwrap_or("");
-            assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
-        }
-        assert!(nf_a.get_value().unwrap() == nf, "Nf value should be the same");
-
-        Ok(())
-    }
-
-}

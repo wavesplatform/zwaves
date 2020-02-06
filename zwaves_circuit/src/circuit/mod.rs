@@ -22,8 +22,6 @@ use itertools::Itertools;
 use arrayvec::ArrayVec;
 
 pub const MERKLE_PROOF_LEN:usize = 48;
-pub static FEE:&str = "1";
-
 
 
 
@@ -77,62 +75,31 @@ pub fn alloc_proof_data<E: JubjubEngine, CS:ConstraintSystem<E>>(
     })
 }
 
-
-
-#[derive(Clone)]
-pub struct Deposit<'a, E: JubjubEngine> {
-    pub data: Option<NoteData<E>>,
-    pub params: &'a E::Params
+pub fn alloc_fr_vec<E: JubjubEngine, CS:ConstraintSystem<E>>(
+    mut cs: CS, 
+    data: Option<Vec<E::Fr>>,
+    size: usize) -> Result<Vec<AllocatedNum<E>>, SynthesisError> {
+    Ok(match data {
+        Some(data) => {
+            assert!(data.len() == size, "vector length should be equal default length");
+            data.iter().enumerate().map(|(i, item)| 
+                AllocatedNum::alloc(cs.namespace(|| format!("item[{}]", i)), || Ok(item.clone())).unwrap()
+            ).collect::<Vec<_>>()
+        },
+        None => (0..size).map(|i| AllocatedNum::alloc(cs.namespace(|| format!("item[{}]", i)), || Err(SynthesisError::AssignmentMissing)).unwrap()).collect::<Vec<_>>()
+    })
 }
-
-
-
-impl <'a, E: JubjubEngine> Circuit<E> for Deposit<'a, E> {
-    fn synthesize<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS
-    ) -> Result<(), SynthesisError>
-    {
-
-        let out_note = alloc_note_data(cs.namespace(|| "alloc note data"), self.data.clone())?;
-        let out_hash = transactions::note_hash(cs.namespace(|| "hashing input"), &out_note, self.params)?;
-
-        
-        out_hash.inputize(cs.namespace(|| "inputize out_hash"))?;
-        out_note.asset_id.inputize(cs.namespace(|| "inputize asset_id"))?;
-        out_note.amount.inputize(cs.namespace(|| "inputize amount"))?;
-        out_note.native_amount.inputize(cs.namespace(|| "inputize native_amount"))?;
-
-        Ok(())
-    }
-}
-
-
-/*
-    mut cs: CS,
-    in_note: [Note<E>; 2],
-    in_nullifier: [AllocatedNum<E>; 2],
-    in_proof: [&[(AllocatedNum<E>, Boolean)]; 2],
-
-    out_hash: [AllocatedNum<E>; 2],
-    out_note: [Note<E>; 2],
-
-    root_hash: AllocatedNum<E>,
-    sk: AllocatedNum<E>,
-    params: &E::Params
-*/
 
 
 #[derive(Clone)]
 pub struct Transfer<'a, E: JubjubEngine> {
+    pub receiver: Option<E::Fr>,
     pub in_note: [Option<NoteData<E>>; 2],
-    pub out_note: [Option<NoteData<E>>; 2],
-  
     pub in_proof: [Option<Vec<(E::Fr, bool)>>; 2],
-    
+    pub out_note: [Option<NoteData<E>>; 2],
     pub root_hash: Option<E::Fr>,
     pub sk: Option<E::Fr>,
-
+    pub packed_asset: Option<E::Fr>,
     pub params: &'a E::Params
 }
 
@@ -143,6 +110,10 @@ impl <'a, E: JubjubEngine> Circuit<E> for Transfer<'a, E> {
         cs: &mut CS
     ) -> Result<(), SynthesisError>
     {
+        let receiver = AllocatedNum::alloc(cs.namespace(|| "allocate receiver"), || self.receiver.ok_or(SynthesisError::AssignmentMissing)).unwrap();
+        receiver.inputize(cs.namespace(|| "inputize receiver")).unwrap();
+
+
         let in_note = (0..2).map(|i| alloc_note_data(cs.namespace(|| format!("alloc note data in_note[{}]", i)), self.in_note[i].clone()))
             .collect::<Result<ArrayVec<[transactions::Note<E>;2]>, SynthesisError>>()?;
         
@@ -155,17 +126,19 @@ impl <'a, E: JubjubEngine> Circuit<E> for Transfer<'a, E> {
         let root_hash = AllocatedNum::alloc(cs.namespace(|| "alloc root_hash"), || self.root_hash.ok_or(SynthesisError::AssignmentMissing))?;
         let sk = AllocatedNum::alloc(cs.namespace(|| "alloc sk"), || self.sk.ok_or(SynthesisError::AssignmentMissing))?;
 
-        let fee = <E::Fr as PrimeField>::from_str(FEE).unwrap();
+        let packed_asset = AllocatedNum::alloc(cs.namespace(|| "alloc packed_asset"), || self.packed_asset.ok_or(SynthesisError::AssignmentMissing))?;
+
         let (out_hash, nf) = transactions::transfer(cs.namespace(|| "transfer"),
             &in_note,
             &in_proof,
             &out_note,
             &root_hash,
             &sk,
-            &fee,
+            &packed_asset,
             self.params)?;
 
         root_hash.inputize(cs.namespace(|| "root_hash inputize")).unwrap();
+        packed_asset.inputize(cs.namespace(|| "packed asset inputize")).unwrap();
 
         out_hash.iter().enumerate().for_each(|(i, n)| 
             n.inputize(cs.namespace(|| format!("inputize out_hash[{}]", i))).unwrap()
@@ -180,91 +153,41 @@ impl <'a, E: JubjubEngine> Circuit<E> for Transfer<'a, E> {
 }
 
 
-#[cfg(test)]
-mod circuit_test {
-    use super::*;
-    use sapling_crypto::circuit::test::TestConstraintSystem;
-    use sapling_crypto::jubjub::{JubjubBls12, JubjubParams};
-    use pairing::bls12_381::{Bls12, Fr, FrRepr};
-    use pairing::{Field};
-    use rand::os::OsRng;
-    use rand::Rng;
-
-    use zwaves_primitives::fieldtools;
-
-    #[test]
-    fn test_deposit() -> Result<(), SynthesisError> {
-        let rng = &mut OsRng::new().unwrap();
-        let params = JubjubBls12::new();
-
-
-        let circuit = Deposit::<Bls12> {data: None, params: &params };
-        let zkparams = generate_random_parameters(circuit, rng)?;
-
-        let pvk = prepare_verifying_key(&zkparams.vk);
-
-        let note = NoteData::<Bls12> {
-            asset_id: Fr::one(),
-            amount: Fr::one(),
-            native_amount: Fr::one(),
-            txid: rng.gen(),
-            owner: rng.gen()
-        };
-
-        let note_hash = zwaves_primitives::transactions::note_hash(&note, &params);
-
-        let circuit = Deposit::<Bls12> {
-            data: Some(note.clone()),
-            params: &params
-        };
-
-        let proof = create_random_proof(circuit, &zkparams, rng)?;
-
-        let result = verify_proof(
-            &pvk,
-            &proof,
-            &[note_hash, note.asset_id, note.amount, note.native_amount]
-        ).unwrap();
-        assert!(result, "Proof is correct");
-        Ok(())
-    }
-
-    #[test]
-    fn test_deposit_witness() -> Result<(), SynthesisError> {
-
-        let rng = &mut OsRng::new().unwrap();
-        let params = JubjubBls12::new();
-
-        let note = NoteData::<Bls12> {
-            asset_id: Fr::one(),
-            amount: Fr::one(),
-            native_amount: Fr::one(),
-            txid: rng.gen(),
-            owner: rng.gen()
-        };
-
-        let note_hash = zwaves_primitives::transactions::note_hash(&note, &params);
-
-        let circuit = Deposit::<Bls12> {
-            data: Some(note.clone()),
-            params: &params
-        };
-    
-    
-        let mut cs = TestConstraintSystem::<Bls12>::new();
-        circuit.synthesize(&mut cs).unwrap();
-
-        assert!(cs.inputs[1].0==note_hash, "note hash not satisfied");
-    
-        if !cs.is_satisfied() {
-            let not_satisfied = cs.which_is_unsatisfied().unwrap_or("");
-            assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
-        }
-
- 
-
-        Ok(())
-    }
-
+#[derive(Clone)]
+pub struct UtxoAccumulator<'a, E: JubjubEngine> {
+    pub note_hashes: [Option<E::Fr>; 2],
+    pub index: Option<E::Fr>,
+    pub old_proof: Option<Vec<E::Fr>>,
+    pub new_proof: Option<Vec<E::Fr>>,
+    pub params: &'a E::Params
 }
 
+
+
+impl <'a, E: JubjubEngine> Circuit<E> for UtxoAccumulator<'a, E> {
+    fn synthesize<CS: ConstraintSystem<E>>(
+        self,
+        cs: &mut CS
+    ) -> Result<(), SynthesisError>
+    {
+        let note_hashes = (0..2).map(|i| {
+            let n = AllocatedNum::alloc(cs.namespace(|| format!("alloc note_hashes[{}]", i)), || self.note_hashes[i].ok_or(SynthesisError::AssignmentMissing)).unwrap();
+            n.inputize(cs.namespace(|| format!("inputize note_hashes[{}]", i))).unwrap();
+            n
+        }).collect::<Vec<_>>();
+
+
+        let index = AllocatedNum::alloc(cs.namespace(|| "allocate index"), || self.index.ok_or(SynthesisError::AssignmentMissing)).unwrap();
+        index.inputize(cs.namespace(|| "inputize index")).unwrap();
+
+        let old_proof = alloc_fr_vec(cs.namespace(|| "alloc old_proof"), self.old_proof, MERKLE_PROOF_LEN-1)?;
+        let new_proof = alloc_fr_vec(cs.namespace(|| "alloc new_proof"), self.new_proof, MERKLE_PROOF_LEN-1)?;
+
+        let (old_root, new_root) = transactions::utxo_accumulator(cs.namespace(|| "process dual merkle proofs"), &note_hashes, &index, &old_proof, &new_proof, self.params)?;
+        
+        old_root.inputize(cs.namespace(|| "inputize old_root"))?;
+        new_root.inputize(cs.namespace(|| "inputize new_root"))?;
+
+        Ok(())
+    }
+}

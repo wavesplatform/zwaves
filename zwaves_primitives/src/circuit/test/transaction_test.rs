@@ -16,7 +16,7 @@ use pairing::{PrimeField, Field};
 use crate::pedersen_hasher;
 use crate::circuit::merkle_proof;
 use crate::transactions::{NoteData, pubkey, note_hash};
-use crate::circuit::transactions::{transfer, Note};
+use crate::circuit::transactions::{transfer, Note, nullifier};
 
 
 use rand::os::OsRng;
@@ -200,17 +200,9 @@ pub fn test_merkle_tree_struct(){
 
     let mut mt = MerkleTreeAccumulator::new();
     mt.pushMany(&note_hashes);
-
     let sibling = mt.proof(index as usize);
-
     let leaf_data = note_hashes[index];
-
     let cmp_root = crate::pedersen_hasher::merkle_root::<Bls12>(&sibling, index as u64, &leaf_data, &JUBJUB_PARAMS);
-    
-    println!("{:?}, {:?}", cmp_root, mt.root());
-
-
-
     assert!(cmp_root == mt.root(), "merkle proof results should be equal");
     
 }
@@ -246,13 +238,7 @@ pub fn test_merkle_proof(){
         assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
     }
     assert!(crate::pedersen_hasher::merkle_root::<Bls12>(&sibling, index as u64, &leaf_data, &JUBJUB_PARAMS) == res.get_value().unwrap(), "merkle proof results should be equal");
-    
 }
-
-
-
-
-
 
 
 
@@ -333,3 +319,115 @@ fn test_transaction() {
 
 }
 
+
+
+
+
+#[test]
+fn test_transaction_withdraw() {
+    let mut rng = OsRng::new().unwrap();
+
+    let n_notes = 64;
+    let sk_data: Fr = rng.gen();
+    let pk = pubkey::<Bls12>(&sk_data, &JUBJUB_PARAMS);
+
+    let notes = (0..n_notes).map(|_| rand_note(Some(Fr::zero()), None, None, None, Some(pk), &mut rng)).collect::<Vec<_>>();
+
+    let note_hashes = notes.iter().map(|n| note_hash::<Bls12>(n, &JUBJUB_PARAMS)).collect::<Vec<_>>();
+
+    let mut mt = MerkleTreeAccumulator::new();
+    mt.pushMany(&note_hashes);
+
+    let i0 = rng.gen_range(0, n_notes);
+    let i1 = rng.gen_range(0, n_notes-1);
+
+    let indexes = [i0, if i1 < i0 {i1} else {i1+1}];
+    let indexes_bits = indexes.iter().map(|i| (0..PROOF_LENGTH).map(|j| (i>>j) & 1 == 1).collect::<Vec<_>>());
+
+    let mut cs = TestConstraintSystem::<Bls12>::new();
+
+    let in_note_data = indexes.iter().map(|&i| notes[i].clone()).collect::<Vec<_>>();
+    let in_note = in_note_data.iter().enumerate().map(|(i, note)| alloc_note_data(cs.namespace(|| format!("alloc in_note {}", i)), Some(note.clone())).unwrap()).collect::<Vec<_>>();
+    
+    let in_proof = indexes.iter().zip(indexes_bits).map(|(&i, bits)| {
+        let proof = mt.proof(i as usize).iter().zip(bits.iter()).map(|(&f, &b)| (f, b)).collect::<Vec<_>>();
+        alloc_proof_data(cs.namespace(|| format!("alloc in_proof {}", i)), Some(proof)).unwrap()
+    }).collect::<Vec<_>>();
+
+    let all_amount = fr2big(notes[indexes[0]].amount.clone()) + fr2big(notes[indexes[1]].amount.clone());
+    
+    let all_native_amount = fr2big(notes[indexes[0]].native_amount.clone()) + fr2big(notes[indexes[1]].native_amount.clone());
+
+
+    let all_amount_p1 = &all_amount/BigInt::from(7);
+    let all_native_amount_p1 = &all_amount/BigInt::from(5);
+
+    let all_amount_p2 = &all_amount/BigInt::from(-5);
+    let all_native_amount_p2 = &all_amount/BigInt::from(-3);
+
+
+    let out_note_data = [
+        rand_note(Some(Fr::zero()), Some(big2fr(&all_amount - &all_amount_p1 + &all_amount_p2)), Some(big2fr(&all_native_amount - &all_native_amount_p1 + &all_native_amount_p2)), None, None, &mut rng),
+        rand_note(Some(Fr::zero()), Some(big2fr(all_amount_p1.clone())), Some(big2fr(all_native_amount_p1.clone())), None, None, &mut rng)
+    ];
+
+    let out_note = out_note_data.iter().enumerate().map(|(i, note)| alloc_note_data(cs.namespace(|| format!("alloc out_note {}", i)), Some(note.clone())).unwrap()).collect::<Vec<_>>();
+
+    let sk = AllocatedNum::alloc(cs.namespace(|| "alloc sk"), || Ok(sk_data)).unwrap();
+
+    let u64num = BigInt::from_str("18446744073709551616").unwrap();
+    
+    let packed_asset_bn = ((&u64num+&all_native_amount_p2)<< 128) + ((&u64num+&all_amount_p2)<< 64);
+
+    let packed_asset = AllocatedNum::alloc(cs.namespace(|| "alloc packed_asset"), || Ok(big2fr(packed_asset_bn))).unwrap();
+    let root_hash =  AllocatedNum::alloc(cs.namespace(|| "alloc root_hash"), || Ok(mt.root())).unwrap();
+
+    let (out_hash, nf) = transfer(cs.namespace(||"exec transfer"), &in_note, &in_proof, &out_note, &root_hash, &sk, &packed_asset, &JUBJUB_PARAMS).unwrap();
+
+    if !cs.is_satisfied() {
+        let not_satisfied = cs.which_is_unsatisfied().unwrap_or("");
+        assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
+    }
+
+    let nf_computed = in_note_data.iter().map(|note| {
+        let hash = crate::transactions::note_hash(note, &JUBJUB_PARAMS);
+        crate::transactions::nullifier::<Bls12>(&hash, &sk_data, &JUBJUB_PARAMS)
+    });
+
+    let out_hash_computed = out_note_data.iter().map(|note| crate::transactions::note_hash(note, &JUBJUB_PARAMS));
+
+    assert!(out_hash.iter().zip(out_hash_computed).all(|(a, b)| a.get_value().unwrap() == b), "out hashes should be the same");
+    assert!(nf.iter().zip(nf_computed).all(|(a, b)| a.get_value().unwrap() == b), "nullifiers should be the same");
+
+}
+
+
+#[test]
+fn test_nullifier() -> Result<(), SynthesisError> {
+    let rng = &mut OsRng::new().unwrap();
+    let params = JubjubBls12::new();
+
+
+    let mut cs = TestConstraintSystem::<Bls12>::new();
+
+    let nh = rng.gen::<Fr>();
+    let sk = rng.gen::<Fr>();
+
+
+    let nf = crate::transactions::nullifier::<Bls12>(&nh, &sk, &params);
+
+
+    let nh_a = AllocatedNum::alloc(cs.namespace(|| "var nh_a"), || Ok(nh))?;
+    let sk_a = AllocatedNum::alloc(cs.namespace(|| "var sk_a"), || Ok(sk))?;
+    let sk_bits = sk_a.into_bits_le_strict(cs.namespace(|| "var sk_bits"))?;
+
+    let nf_a = nullifier(&mut cs, &nh_a, &sk_bits, &params)?;
+
+    if !cs.is_satisfied() {
+        let not_satisfied = cs.which_is_unsatisfied().unwrap_or("");
+        assert!(false, format!("Constraints not satisfied: {}", not_satisfied));
+    }
+    assert!(nf_a.get_value().unwrap() == nf, "Nf value should be the same");
+
+    Ok(())
+}
