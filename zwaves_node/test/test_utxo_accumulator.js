@@ -20,7 +20,8 @@ let data = {
     proof_sibling: [proof_zero, proof_pair]
 };
 
+console.log(data);
 let vk = extract_vk(mpc_params);
 let res = utxoAccumulator(mpc_params, data);
-
+console.log(res);
 console.log(verify(vk, res));

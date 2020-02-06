@@ -1,4 +1,5 @@
-const {MerkleTree} = require("../lib/index");
+const {MerkleTree, bufferizeBigints} = require("../lib/index");
+const bs58 = require('bs58')
 
-let mt = new MerkleTree(32+1);
-console.log(mt.root);
+let mt = new MerkleTree(48);
+console.log(bs58.encode(bufferizeBigints(mt.root())));

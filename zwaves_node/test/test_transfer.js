@@ -2,6 +2,7 @@ let {utxoAccumulator, MerkleTree, fr_random, fs_random, u64_random,
     verify, u32_random, pubkey, note_hash, randrange, transfer, extract_vk, bufferizeBigints} = require("../lib/index.js");
 
 
+
 function utxo_random(fixed) {
     return {
         asset_id:u32_random(),
@@ -62,6 +63,7 @@ let data = {
 
 
 let vk = extract_vk(mpc_params);
+console.log(data);
 let res = transfer(mpc_params, data);
-
+console.log(res);
 console.log(verify(vk, res));

@@ -1,0 +1,228 @@
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+
+let transferVK=base58''
+let utxoAccumulatorVK=base58''
+let emptyRoot=base58'4ABQyM1tpHEDkbHes1t7G1F3yyMJXQSvaUR1rqkZqKak'
+
+
+# TODO replace. Gas cost for transfer
+let transferFee = 400000
+
+# TODO replace. Gas cost for accumulation
+let accumulatorFee = 400000
+
+
+func takeLR(v:ByteVector, from:Int, to:Int) = {
+    drop(take(v, to), from)
+}
+
+func getUtxoKey(utxo:ByteVector) = "U:"+toBase58String(utxo)
+func getRootKey(root:ByteVector) = "R:"+toBase58String(root)
+func getNullifierKey(nullifier:ByteVector) = "N:"+toBase58String(nullifier)
+func getMessageKey(n:Int) = "M:"+toString(n)
+func getRootValueKey(n:Int) = "RV:"+toString(n)
+func getUTXOMessageKey(n:Int) = "UM:"+toString(n)
+
+
+
+func flagExists(key:String) = {
+    match getBoolean(this, key) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+
+func rootExists(key:String) = {
+    if (key=="R:4ABQyM1tpHEDkbHes1t7G1F3yyMJXQSvaUR1rqkZqKak") then true
+    else match getBoolean(this, key) {
+        case a:Boolean => a
+        case _ => false
+    }
+}
+
+func getMessageNum() = {
+    match getBinary(this, "MESSAGE_NUM") {
+        case a:ByteVector => toInt(a)
+        case _ => 0
+    }
+}
+
+func getRootNum() = {
+    match getBinary(this, "ROOT_NUM") {
+        case a:ByteVector => toInt(a)
+        case _ => 0
+    }
+}
+
+func getRootValue(n:Int) = {
+    match getBinary(this, getRootValueKey(n)) {
+        case a:ByteVector => a
+        case _ => emptyRoot
+    }
+}
+
+
+
+# Transfer input structure
+# receiver        256
+# root_hash       256
+# zeros           64
+# native_amount   64 signed int
+# amount          64 signed int
+# asset_id        64
+# out_hash0       256
+# out_hash1       256
+# nf0             256
+# nf1             256
+
+@Callable(i)
+func transferExternal(proof:ByteVector, v:ByteVector, m:ByteVector) = {
+    let receiver = Address(takeLR(v, 0+6, 32))
+    let rootHash = getRootKey(takeLR(v, 32, 64))
+    let nativeAmount = toInt(v, 72)
+    let amount = toInt(v, 80)
+    let assetId = toInt(v, 88)
+    
+    let rOutHash0 = takeLR(v, 96, 128)
+    let rOutHash1 = takeLR(v, 128, 160)
+    
+    let outHash0 = getUtxoKey(rOutHash0)
+    let outHash1 = getUtxoKey(rOutHash1)
+    
+    let rNf0 = takeLR(v, 160, 192)
+    let rNf1 = takeLR(v, 192, 224)
+    
+    let nf0 = getNullifierKey(rNf0)
+    let nf1 = getNullifierKey(rNf1)
+    
+    
+    let pmt = i.payments[0]     
+    let mn = getMessageNum()
+    let fee = accumulatorFee
+    
+    let withdrawNativeAmount = 
+        if (size(i.payments) == 0) 
+            then  - nativeAmount - fee 
+        else if (size(i.payments) == 1 && !isDefined(i.payments[0].assetId)) 
+            then i.payments[0].amount - nativeAmount - fee 
+        else throw()
+
+    if (assetId != 0 || amount != 0) 
+        then throw("TODO: implement mapping from WAVES assetId into internal u64 asset_id to transfer tokens")
+    else if (withdrawNativeAmount < 0)
+        then throw("not enough WAVES to process transaction and positive number of money")
+    else if (flagExists(nf0) || flagExists(nf1))
+        then throw("doublespend detected")
+    else if (flagExists(outHash0) || flagExists(outHash1))
+        then throw("output utxo already exists")
+    else if (!rootExists(rootHash))
+        then throw("root not exists")
+    else if (!groth16Verify(transferVK, proof, v)) then 
+        throw("wrong proof")
+    else 
+        [
+            BooleanEntry(nf0, true),
+            BooleanEntry(nf1, true),
+            BooleanEntry(outHash0, true),
+            BooleanEntry(outHash1, true),
+            BinaryEntry("MESSAGE_NUM", toBytes(mn+1)), 
+            BinaryEntry(getMessageKey(mn), rNf0+rNf1+m),
+            BinaryEntry(getUTXOMessageKey(mn), rOutHash0+rOutHash1),
+            ScriptTransfer(receiver, withdrawNativeAmount, unit)
+        ]
+}
+
+
+@Callable(i)
+func transferInternal(proof:ByteVector, v:ByteVector, m:ByteVector) = {
+    let receiver = Address(takeLR(v, 0+6, 32))
+    let rootHash = getRootKey(takeLR(v, 32, 64))
+    let nativeAmount = toInt(v, 72)
+    let amount = toInt(v, 80)
+    let assetId = toInt(v, 88)
+    
+    let rOutHash0 = takeLR(v, 96, 128)
+    let rOutHash1 = takeLR(v, 128, 160)
+    
+    let outHash0 = getUtxoKey(rOutHash0)
+    let outHash1 = getUtxoKey(rOutHash1)
+    
+    let rNf0 = takeLR(v, 160, 192)
+    let rNf1 = takeLR(v, 192, 224)
+    
+    let nf0 = getNullifierKey(rNf0)
+    let nf1 = getNullifierKey(rNf1)
+
+
+    let mn = getMessageNum()
+    let fee = accumulatorFee + transferFee
+    
+    let withdrawNativeAmount = - nativeAmount - fee 
+
+    if (i.caller!=this) then
+        throw("wrong caller")
+    else if (assetId != 0 || amount != 0) 
+        then throw("TODO: implement mapping from WAVES assetId into internal u64 asset_id to transfer tokens")
+    else if (withdrawNativeAmount < 0)
+        then throw("not enough WAVES to process transaction and positive number of money")
+    else if (flagExists(nf0) || flagExists(nf1))
+        then throw("doublespend detected")
+    else if (flagExists(outHash0) || flagExists(outHash1))
+        then throw("output utxo already exists")
+    else if (!rootExists(rootHash))
+        then throw("root not exists")
+    else if (!groth16Verify(transferVK, proof, v)) then 
+        throw("wrong proof")
+    else 
+        [
+            BooleanEntry(nf0, true),
+            BooleanEntry(nf1, true),
+            BooleanEntry(outHash0, true),
+            BooleanEntry(outHash1, true),
+            BinaryEntry("MESSAGE_NUM", toBytes(mn+1)), 
+            BinaryEntry(getMessageKey(mn), rNf0+rNf1+m),
+            BinaryEntry(getUTXOMessageKey(mn), rOutHash0+rOutHash1),
+            ScriptTransfer(receiver, withdrawNativeAmount, unit)
+        ]
+}
+
+
+
+
+# UTXO Accumulator input structure
+# utxo_pair   512
+# zeros       192
+# index       64
+# old_root    256
+# new_root    256
+
+@Callable(i)
+func utxoAccumulator(proof:ByteVector, newRoot:ByteVector) = {
+
+    let rn = getRootNum() 
+    let utxoPair = getBinaryValue(this, getUTXOMessageKey(rn))
+    let oldRoot = getRootValue(rn)
+
+    if (!groth16Verify(utxoAccumulatorVK, proof, utxoPair+base58'111111111111111111111111'+toBytes(rn*2)+oldRoot+newRoot))
+        then throw("wrong proof or data racing case")
+    else
+        [
+            BinaryEntry("ROOT_NUM", toBytes(rn+1)),
+            BinaryEntry(getRootValueKey(rn+1), newRoot),
+            BooleanEntry(getRootKey(newRoot), true)
+        ]
+}
+
+
+
+@Verifier(tx)
+func verify() = {
+    match tx {
+        case tx:InvokeScriptTransaction =>  (tx.function == "transferInternal") || (tx.function == "utxoAccumulator") || sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+        case _ => true  # TODO replace to false
+    }
+}
