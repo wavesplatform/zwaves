@@ -5,3 +5,4 @@ bin/
 pkg/
 wasm-pack.log
 .vscode
+!zwaves_setup/src/bin
