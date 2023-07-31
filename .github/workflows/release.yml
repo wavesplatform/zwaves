@@ -1,0 +1,23 @@
+name: Publish artfiacts to Sonatype Repo
+
+on: [push]
+
+jobs:
+  build-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build native image
+        run: |
+          cd zwaves_jni
+          sudo apt-get update
+          rustup target add x86_64-unknown-linux-gnu
+          cargo build --target=x86_64-unknown-linux-gnu --release
+          cp ../target/x86_64-unknown-linux-gnu/release/libzwaves_jni.so javalib/src/main/resources/META-INF/native/linux64
+          cd javalib
+          ./gradlew publishToSonatype \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+
