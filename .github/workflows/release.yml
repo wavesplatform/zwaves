@@ -11,11 +11,13 @@ jobs:
         run: |
           cd zwaves_jni
           sudo apt-get update
-          sudo apt-get -y install clang gcc g++ zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev mingw-w64 gcc-multilib
-          rustup target add x86_64-apple-darwin
-          rustup target add aarch64-apple-darwin
-          rustup target add i686-pc-windows-gnu
-          rustup target add x86_64-pc-windows-gnu
-          rustup target add i686-unknown-linux-gnu
           rustup target add x86_64-unknown-linux-gnu
-          ./build_all.sh
+          cargo build --target=x86_64-unknown-linux-gnu --release
+          cp ../target/x86_64-unknown-linux-gnu/release/libzwaves_jni.so javalib/src/main/resources/META-INF/native/linux64
+          cd javalib
+          ./gradlew publishToSonatype \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+
