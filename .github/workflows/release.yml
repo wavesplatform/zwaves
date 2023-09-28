@@ -1,0 +1,96 @@
+name: Publish artfiacts to Sonatype Repo
+
+on: [push]
+
+env:
+  NATIVE_DIR: zwaves_jni/javalib/src/main/resources/META-INF/native
+
+jobs:
+  build-native:
+    runs-on: ${{ matrix.os }}
+    env:
+      target-path: ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      matrix:
+        platform: [darwin]
+        arch: [x86-64, aarch64]
+#        exclude:
+#          - platform: linux
+#            arch: x86-64
+#          - platform: win32
+#            arch: aarch64
+        include:
+          - platform: darwin
+            os: macos-12
+            artifact: libzwaves_jni.dylib
+
+          - platform: darwin
+            arch: aarch64
+            target: aarch64-apple-darwin
+            dest: osx64/aarch64
+
+          - platform: darwin
+            arch: x86-64
+            target: x86_64-apple-darwin
+            dest: osx
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+#      - name: Remove the rust-toolchain.toml file
+#        run: rm rust-toolchain.toml
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      # - uses: Swatinem/rust-cache@v2
+
+      - name: Build native image
+        env:
+          # TARGET_FLAGS:
+          TARGET_DIR: ./target
+          # Emit backtraces on panics.
+          RUST_BACKTRACE: 1
+        run: |
+          set -euxo pipefail
+          
+          cd zwaves_jni
+          cargo build --release --target ${{ matrix.target }} 
+          cd ..
+          
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ matrix.dest }}
+
+      - name: Upload result
+        uses: actions/upload-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}/**/*
+
+  build-jni:
+    runs-on: ubuntu-latest
+    needs: build-native
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 8
+          distribution: temurin
+          cache: gradle
+      - uses: actions/download-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}
+
+      - name: Publish Snapshot
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew publishToMavenLocal
+
+      - name: Upload result
+        uses: actions/upload-artifact@v3
+        with:
+          name: javalib
+          path: ~/.m2/repository/com/wavesplatform
