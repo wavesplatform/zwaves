@@ -2,20 +2,25 @@ extern crate pairing;
 
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
-use bellman::{Circuit, ConstraintSystem, SynthesisError};
-use bellman::groth16::{create_random_proof, generate_random_parameters};
-use bellman::LinearCombination;
-use pairing::{Engine, Field, PrimeField, PrimeFieldRepr};
-use pairing::bls12_381::{Bls12, Fr};
-use rand::os::OsRng;
-use rand::Rng;
+use bellman::{
+    groth16::{create_random_proof, generate_random_parameters},
+    Circuit, ConstraintSystem, LinearCombination, SynthesisError,
+};
+use pairing::{
+    bls12_381::{Bls12, Fr},
+    Field,
+};
+use rand::{os::OsRng, Rng};
 
-use sapling_crypto::circuit::num::AllocatedNum;
-use sapling_crypto::circuit::pedersen_hash;
-use sapling_crypto::jubjub::{JubjubBls12, JubjubEngine, JubjubParams};
-use zwaves_primitives::pedersen_hasher;
-use zwaves_primitives::serialization::write_fr_iter;
-use zwaves_primitives::verifier::{truncate_verifying_key, verify_proof};
+use sapling_crypto::{
+    circuit::{num::AllocatedNum, pedersen_hash},
+    jubjub::{JubjubBls12, JubjubEngine},
+};
+use zwaves_primitives::{
+    pedersen_hasher,
+    serialization::write_fr_iter,
+    verifier::{truncate_verifying_key, verify_proof},
+};
 
 #[derive(Clone)]
 pub struct PedersenDemo<E: JubjubEngine> {
@@ -26,31 +31,42 @@ pub struct PedersenDemo<E: JubjubEngine> {
 }
 
 impl<E: JubjubEngine> Circuit<E> for PedersenDemo<E> {
-    fn synthesize<CS: ConstraintSystem<E>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(), SynthesisError>
-    {
-        let image = AllocatedNum::alloc(cs.namespace(|| "signal public input image"), || self.image.ok_or(SynthesisError::AssignmentMissing))?;
+    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let image = AllocatedNum::alloc(cs.namespace(|| "signal public input image"), || {
+            self.image.ok_or(SynthesisError::AssignmentMissing)
+        })?;
         image.inputize(cs.namespace(|| "image inputize"))?;
-        let preimage = AllocatedNum::alloc(cs.namespace(|| "signal input preimage"), || self.preimage.ok_or(SynthesisError::AssignmentMissing))?;
+        let preimage = AllocatedNum::alloc(cs.namespace(|| "signal input preimage"), || {
+            self.preimage.ok_or(SynthesisError::AssignmentMissing)
+        })?;
         let preimage_bits = preimage.into_bits_le_strict(cs.namespace(|| "preimage_bits <== bitify(preimage)"))?;
         let image_calculated = pedersen_hash::pedersen_hash(
             cs.namespace(|| "image_calculated <== pedersen_hash(preimage_bits)"),
             pedersen_hash::Personalization::NoteCommitment,
             &preimage_bits,
             &self.params,
-        )?.get_x().clone();
+        )?
+        .get_x()
+        .clone();
 
         let mut data_sum = LinearCombination::<E>::zero();
 
         self.data.into_iter().enumerate().for_each(|(i, e)| {
-            let n = AllocatedNum::alloc(cs.namespace(|| format!("data_item[{}]", i)), || e.ok_or(SynthesisError::AssignmentMissing)).unwrap();
-            n.inputize(cs.namespace(|| format!("data_item[{}] inputize", i))).unwrap();
+            let n = AllocatedNum::alloc(cs.namespace(|| format!("data_item[{}]", i)), || {
+                e.ok_or(SynthesisError::AssignmentMissing)
+            })
+            .unwrap();
+            n.inputize(cs.namespace(|| format!("data_item[{}] inputize", i)))
+                .unwrap();
             data_sum = data_sum.clone() + (E::Fr::one(), n.get_variable());
         });
 
-        cs.enforce(|| "image_calculated === image", |lc| lc + image.get_variable(), |lc| lc + CS::one(), |lc| lc + image_calculated.get_variable());
+        cs.enforce(
+            || "image_calculated === image",
+            |lc| lc + image.get_variable(),
+            |lc| lc + CS::one(),
+            |lc| lc + image_calculated.get_variable(),
+        );
         cs.enforce(|| "data sum equals zero", |lc| lc, |lc| lc, |lc| lc + &data_sum);
         Ok(())
     }
@@ -65,11 +81,14 @@ mod tests {
         let rng = &mut OsRng::new().unwrap();
 
         let mut sum = Fr::zero();
-        let mut data: Vec<Fr> = (0..15).into_iter().map(|_| {
-            let n = rng.gen();
-            sum.add_assign(&n);
-            n
-        }).collect();
+        let mut data: Vec<Fr> = (0..15)
+            .into_iter()
+            .map(|_| {
+                let n = rng.gen();
+                sum.add_assign(&n);
+                n
+            })
+            .collect();
 
         data[14].sub_assign(&sum);
 
@@ -125,11 +144,7 @@ mod tests {
 
         println!("Inputs: {}", base64::encode(&inputs_b));
 
-        let result = verify_proof(
-            &tvk,
-            &proof,
-            &inputs,
-        ).unwrap();
+        let result = verify_proof(&tvk, &proof, &inputs).unwrap();
         assert!(result, "Proof is correct");
         Ok(())
     }

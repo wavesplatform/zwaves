@@ -25,8 +25,7 @@ pub fn read_fr_vec<Fr: PrimeField>(data: &[u8]) -> io::Result<Vec<Fr>> {
         };
 
         offset += fr_repr_sz;
-        let fr = Fr::from_repr(fr_repr)
-            .map_err(|_e| io::Error::new(io::ErrorKind::InvalidData, "not in field"))?;
+        let fr = Fr::from_repr(fr_repr).map_err(|_e| io::Error::new(io::ErrorKind::InvalidData, "not in field"))?;
         inputs.push(fr);
     }
 
@@ -34,9 +33,9 @@ pub fn read_fr_vec<Fr: PrimeField>(data: &[u8]) -> io::Result<Vec<Fr>> {
 }
 
 pub fn write_fr_iter<'a, I, Fr>(source: I, data: &mut [u8]) -> io::Result<()>
-    where
-        Fr: PrimeField,
-        I: IntoIterator<Item=&'a Fr>,
+where
+    Fr: PrimeField,
+    I: IntoIterator<Item = &'a Fr>,
 {
     let fr_repr_sz = mem::size_of::<Fr::Repr>();
     for (i, e) in source.into_iter().enumerate() {

@@ -1,8 +1,10 @@
 use std::mem;
 
-use jni::JNIEnv;
-use jni::objects::JClass;
-use jni::sys::{jboolean, jbyteArray};
+use jni::{
+    objects::JClass,
+    sys::{jboolean, jbyteArray},
+    JNIEnv,
+};
 
 pub mod bls12;
 pub mod bn256;
@@ -13,8 +15,8 @@ pub extern "system" fn Java_com_wavesplatform_zwaves_bls12_Groth16_verify(
     _class: JClass,
     jvk: jbyteArray,
     jproof: jbyteArray,
-    jinputs: jbyteArray)
-    -> jboolean {
+    jinputs: jbyteArray,
+) -> jboolean {
     let vk = parse_jni_bytes(&env, jvk);
     let proof = parse_jni_bytes(&env, jproof);
     let inputs = parse_jni_bytes(&env, jinputs);

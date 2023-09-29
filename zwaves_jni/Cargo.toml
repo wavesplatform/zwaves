@@ -30,3 +30,6 @@ rand = "0.4"
 version = "=0.7"
 features = ["derive"]
 package = "ff_ce"
+
+[dev-dependencies]
+test-case = "3.2.1"

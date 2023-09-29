@@ -1,5 +1,7 @@
-use std::io;
-use std::io::{Read, Write};
+use std::{
+    io,
+    io::{Read, Write},
+};
 
 use ff::{Field, PrimeField};
 use pairing_ce::{CurveAffine, CurveProjective, EncodedPoint, Engine};
@@ -56,10 +58,7 @@ impl<E: Engine> Proof<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -71,10 +70,7 @@ impl<E: Engine> Proof<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -86,10 +82,7 @@ impl<E: Engine> Proof<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -130,10 +123,7 @@ impl<E: Engine> TruncatedVerifyingKey<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -145,10 +135,7 @@ impl<E: Engine> TruncatedVerifyingKey<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -160,10 +147,7 @@ impl<E: Engine> TruncatedVerifyingKey<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -175,10 +159,7 @@ impl<E: Engine> TruncatedVerifyingKey<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|e| {
                 if e.is_zero() {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "point at infinity",
-                    ))
+                    Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                 } else {
                     Ok(e)
                 }
@@ -192,10 +173,7 @@ impl<E: Engine> TruncatedVerifyingKey<E> {
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
                 .and_then(|e| {
                     if e.is_zero() {
-                        Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "point at infinity",
-                        ))
+                        Err(io::Error::new(io::ErrorKind::InvalidData, "point at infinity"))
                     } else {
                         Ok(e)
                     }
@@ -246,6 +224,6 @@ pub fn verify_proof<'a, E: Engine>(
         (&acc.into_affine().prepare(), &tvk.gamma_g2.prepare()),
         (&proof.c.prepare(), &tvk.delta_g2.prepare()),
     ]))
-        .unwrap()
+    .unwrap()
         == E::Fqk::one())
 }

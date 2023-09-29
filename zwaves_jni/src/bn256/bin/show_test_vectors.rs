@@ -3,12 +3,12 @@ extern crate zwaves_jni;
 use std::io::Cursor;
 
 use ff::Field;
-use pairing_ce::{CurveAffine, CurveProjective};
-use pairing_ce::bn256::*;
+use pairing_ce::{bn256::*, CurveAffine, CurveProjective};
 use rand::{Rand, SeedableRng, XorShiftRng};
-use zwaves_jni::bn256::serialization::write_fr_iter;
-use zwaves_jni::bn256::verifier::Proof;
-use zwaves_jni::bn256::verifier::TruncatedVerifyingKey;
+use zwaves_jni::bn256::{
+    serialization::write_fr_iter,
+    verifier::{Proof, TruncatedVerifyingKey},
+};
 
 fn main() {
     const NINPUTS: usize = 1;
