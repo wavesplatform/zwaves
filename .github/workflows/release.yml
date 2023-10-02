@@ -23,44 +23,42 @@ jobs:
       RUST_BACKTRACE: 1
     strategy:
       matrix:
-        platform: [ linux, osx, windows ]
+        platform: [ windows ]
+        # platform: [ linux, osx, windows ]
         arch: [ aarch64, amd64, x86 ]
         exclude:
-          - platform: osx
-            arch: x86
+#          - platform: osx
+#            arch: x86
           - platform: windows
             arch: aarch64
-          # osxcross is required
-          # - platform: linux
-          #  arch: aarch64
 
         include:
-          - platform: linux
-            os: ubuntu-20.04
-            build-platform: unknown-linux-gnu
-            artifact: libzwaves_jni.so
-
-          - platform: linux
-            arch: aarch64
-            extra-packages: gcc-9-aarch64-linux-gnu gcc-aarch64-linux-gnu
-
-          - platform: linux
-            arch: x86
-            # extra-packages: gcc-9-multilib-i686-linux-gnu gcc-multilib-i686-linux-gnu
-            extra-packages: gcc-multilib
-
-          - platform: osx
-            os: macos-latest
-            build-platform: apple-darwin
-            artifact: libzwaves_jni.dylib
+#          - platform: linux
+#            os: ubuntu-20.04
+#            build-platform: unknown-linux-gnu
+#            artifact: libzwaves_jni.so
+#
+#          - platform: linux
+#            arch: aarch64
+#            extra-packages: gcc-9-aarch64-linux-gnu gcc-aarch64-linux-gnu # TODO do we need gcc-9?
+#
+#          - platform: linux
+#            arch: x86
+#            extra-packages: gcc-multilib
+#
+#          - platform: osx
+#            os: macos-latest
+#            build-platform: apple-darwin
+#            artifact: libzwaves_jni.dylib
 
           - platform: windows
-            os: windows-latest
+            os: ubuntu-20.04
+            extra-packages: mingw-w64
             build-platform: pc-windows-gnu
             artifact: libzwaves_jni.dll
 
-          - arch: aarch64
-            build-arch: aarch64
+#          - arch: aarch64
+#            build-arch: aarch64
 
           - arch: amd64
             build-arch: x86_64
@@ -93,7 +91,7 @@ jobs:
 
       - name: Run Rust tests
         # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
-        if: matrix.arch != 'aarch64' && matrix.arch != 'x86'
+        if: matrix.arch == 'amd64'
         run: |
           cd zwaves_jni
           cargo test --lib --target ${{ env.build-target }}
