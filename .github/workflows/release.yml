@@ -20,12 +20,13 @@ jobs:
       TARGET_DIR: ./target
 
       # Emit backtraces on panics.
-      RUST_BACKTRACE: 1
+      # RUST_BACKTRACE: 1
     strategy:
       matrix:
         platform: [ windows ]
+        arch: [ x86 ]
         # platform: [ linux, osx, windows ]
-        arch: [ aarch64, amd64, x86 ]
+#        arch: [ aarch64, amd64, x86 ]
         exclude:
 #          - platform: osx
 #            arch: x86
@@ -55,13 +56,13 @@ jobs:
             os: ubuntu-20.04
             extra-packages: mingw-w64
             build-platform: pc-windows-gnu
-            artifact: libzwaves_jni.dll
+            artifact: zwaves_jni.dll
 
 #          - arch: aarch64
 #            build-arch: aarch64
-
-          - arch: amd64
-            build-arch: x86_64
+#
+#          - arch: amd64
+#            build-arch: x86_64
 
           - arch: x86
             build-arch: i686
@@ -101,7 +102,6 @@ jobs:
           cd zwaves_jni
           cargo build --release --target ${{ env.build-target }} 
           cd ..
-          find target -type f
           
           cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
 
