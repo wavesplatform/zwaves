@@ -7,9 +7,15 @@ env:
 
 jobs:
   build-native:
-    name: ${{ matrix.build-target }} library
+    name: ${{ matrix.arch }}/${{ matrix.platform }} library
     runs-on: ${{ matrix.os }}
     env:
+      # Where a library should be
+      target-path: ${{ matrix.platform }}/${{ matrix.arch }}
+
+      # Rust build target
+      build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
+
       # Rust target directory
       TARGET_DIR: ./target
 
@@ -26,12 +32,6 @@ jobs:
             arch: aarch64
 
         include:
-          - target-path: ${{ matrix.platform }}/${{ matrix.arch }} # Where a library should be
-            # Rust build target
-            build-arch: ${{ matrix.arch }}
-            build-platform: ${{ matrix.platform }}
-            build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
-            
           - platform: linux
             os: ubuntu-latest
             build-platform: unknown-linux-gnu
@@ -47,6 +47,9 @@ jobs:
             build-platform: pc-windows-gnu
             artifact: libzwaves_jni.dll
 
+          - arch: aarch64
+            build-arch: aarch64
+
           - arch: amd64
             build-arch: x86_64
 
@@ -55,8 +58,8 @@ jobs:
     steps:
       - name: Debug
         run: |
-          echo "Build target: ${{ matrix.build-target }}"
-          echo "Target path:  ${{ matrix.target-path }}"
+          echo "Build target: ${{ env.build-target }}"
+          echo "Target path:  ${{ env.target-path }}"
 
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -65,7 +68,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: ${{ matrix.build-target }}
+          target: ${{ env.build-target }}
 
       - name: Enable Rust dependencies caching
         uses: Swatinem/rust-cache@v2
@@ -74,15 +77,15 @@ jobs:
         if: matrix.arch != 'aarch64' # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
         run: |
           cd zwaves_jni
-          cargo test --lib --target ${{ matrix.build-target }}
+          cargo test --lib --target ${{ env.build-target }}
 
       - name: Build native libraries
         run: |
           cd zwaves_jni
-          cargo build --release --target ${{ matrix.build-target }} 
+          cargo build --release --target ${{ env.build-target }} 
           cd ..
           
-          cp target/${{ matrix.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ matrix.target-path }}
+          cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
 
       - name: Upload result
         uses: actions/upload-artifact@v3
