@@ -7,7 +7,7 @@ env:
 
 jobs:
   build-native:
-    name: ${{ matrix.target }} library
+    name: ${{ matrix.build-target }} library
     runs-on: ${{ matrix.os }}
     env:
       build-arch: ${{ matrix.arch }}
@@ -72,15 +72,15 @@ jobs:
         if: matrix.arch != 'aarch64' # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
         run: |
           cd zwaves_jni
-          cargo test --lib --target ${{ matrix.build-target }}
+          cargo test --lib --target ${{ env.build-target }}
 
       - name: Build native libraries
         run: |
           cd zwaves_jni
-          cargo build --release --target ${{ matrix.build-target }} 
+          cargo build --release --target ${{ env.build-target }} 
           cd ..
           
-          cp target/${{ matrix.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ matrix.target-path }}
+          cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
 
       - name: Upload result
         uses: actions/upload-artifact@v3
