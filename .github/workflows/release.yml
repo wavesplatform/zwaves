@@ -30,6 +30,9 @@ jobs:
             arch: x86
           - platform: windows
             arch: aarch64
+          # osxcross is required
+          - platform: linux
+            arch: aarch64
 
         include:
           - platform: linux
