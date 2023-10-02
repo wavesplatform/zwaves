@@ -31,14 +31,22 @@ jobs:
           - platform: windows
             arch: aarch64
           # osxcross is required
-          - platform: linux
-            arch: aarch64
+          # - platform: linux
+          #  arch: aarch64
 
         include:
           - platform: linux
-            os: ubuntu-latest
+            os: ubuntu-20.04
             build-platform: unknown-linux-gnu
             artifact: libzwaves_jni.so
+
+          - platform: linux
+            arch: aarch64
+            extra-packages: gcc-9-aarch64-linux-gnu gcc-aarch64-linux-gnu
+
+          - platform: linux
+            arch: x86
+            extra-packages: gcc-9-multilib-i686-linux-gnu gcc-multilib-i686-linux-gnu
 
           - platform: osx
             os: macos-latest
@@ -66,6 +74,12 @@ jobs:
 
       - name: Checkout sources
         uses: actions/checkout@v4
+
+      - name: Install build tools
+        if: ${{ matrix.extra-packages }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.extra-packages }}
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
