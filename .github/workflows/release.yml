@@ -46,7 +46,8 @@ jobs:
 
           - platform: linux
             arch: x86
-            extra-packages: gcc-9-multilib-i686-linux-gnu gcc-multilib-i686-linux-gnu
+            # extra-packages: gcc-9-multilib-i686-linux-gnu gcc-multilib-i686-linux-gnu
+            extra-packages: gcc-multilib
 
           - platform: osx
             os: macos-latest
