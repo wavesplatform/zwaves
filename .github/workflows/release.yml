@@ -75,7 +75,7 @@ jobs:
 
       - name: Run Rust tests
         # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
-        if: !(matrix.arch == 'aarch64' || matrix.arch == 'x86')
+        if: matrix.arch != 'aarch64' && matrix.arch != 'x86'
         run: |
           cd zwaves_jni
           cargo test --lib --target ${{ env.build-target }}
