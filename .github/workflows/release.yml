@@ -7,9 +7,14 @@ env:
 
 jobs:
   build-native:
+    name: Build and test native libraries
     runs-on: ${{ matrix.os }}
     env:
       target-path: ${{ matrix.platform }}-${{ matrix.arch }}
+      # rust flags
+      TARGET_DIR: ./target
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
     strategy:
       matrix:
         platform: [darwin]
@@ -37,28 +42,24 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-#      - name: Remove the rust-toolchain.toml file
-#        run: rm rust-toolchain.toml
-
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      # - uses: Swatinem/rust-cache@v2
+      - name: Enable rust dependencies caching
+        uses: Swatinem/rust-cache@v2
 
-      - name: Build native image
-        env:
-          # TARGET_FLAGS:
-          TARGET_DIR: ./target
-          # Emit backtraces on panics.
-          RUST_BACKTRACE: 1
+      - name: Run rust tests
+        if: matrix.arch != 'aarch64' # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
         run: |
-          set -euxo pipefail
-          
           cd zwaves_jni
-          cargo test --lib --target ${{ matrix.target }} 
+          cargo test --lib --target ${{ matrix.target }}
+
+      - name: Build native libraries
+        run: |
+          cd zwaves_jni
           cargo build --release --target ${{ matrix.target }} 
           cd ..
           
@@ -71,6 +72,7 @@ jobs:
           path: ${{ env.NATIVE_DIR }}/**/*
 
   build-jni:
+    name: Build JNI library
     runs-on: ubuntu-latest
     needs: build-native
     steps:
