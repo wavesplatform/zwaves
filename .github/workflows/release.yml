@@ -74,7 +74,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run Rust tests
-        if: matrix.arch != 'aarch64' # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
+        # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
+        if: !(matrix.arch == 'aarch64' || matrix.arch == 'x86')
         run: |
           cd zwaves_jni
           cargo test --lib --target ${{ env.build-target }}
