@@ -59,6 +59,7 @@ jobs:
           
           cd zwaves_jni
           cargo build --release --target ${{ matrix.target }} 
+          cargo test --target ${{ matrix.target }} 
           cd ..
           
           cp target/${{ matrix.target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ matrix.dest }}
