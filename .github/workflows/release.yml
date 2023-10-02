@@ -1,13 +1,13 @@
 name: Publish artifacts to Sonatype Repo
 
-on: [push]
+on: [ push ]
 
 env:
   NATIVE_DIR: zwaves_jni/javalib/src/main/resources/META-INF/native
 
 jobs:
   build-native:
-    name: Build and test native libraries
+    name: ${{ matrix.target }} library
     runs-on: ${{ matrix.os }}
     env:
       target-path: ${{ matrix.platform }}-${{ matrix.arch }}
@@ -17,16 +17,16 @@ jobs:
       RUST_BACKTRACE: 1
     strategy:
       matrix:
-        platform: [darwin]
-        arch: [x86-64, aarch64]
-#        exclude:
-#          - platform: linux
-#            arch: x86-64
-#          - platform: win32
-#            arch: aarch64
+        platform: [ darwin ]
+        arch: [ x86-64, aarch64 ]
+        #        exclude:
+        #          - platform: linux
+        #            arch: x86-64
+        #          - platform: win32
+        #            arch: aarch64
         include:
           - platform: darwin
-            os: macos-12
+            os: macos-latest
             artifact: libzwaves_jni.dylib
 
           - platform: darwin
@@ -77,15 +77,22 @@ jobs:
     needs: build-native
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-java@v3
         with:
           java-version: 8
           distribution: temurin
           cache: gradle
+
       - uses: actions/download-artifact@v3
         with:
           name: native-libraries
           path: ${{ env.NATIVE_DIR }}
+
+      - name: Run tests
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew publishToMavenLocal
 
       - name: Publish Snapshot
         run: |

@@ -24,6 +24,11 @@ group = "com.wavesplatform"
 archivesBaseName = "zwaves"
 version = "0.2.0-SNAPSHOT"
 
+dependencies {
+    // Use JUnit test framework
+    testImplementation 'junit:junit:4.12'
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
@@ -44,4 +49,3 @@ test {
 
     maxHeapSize = '1G'
 }
-
