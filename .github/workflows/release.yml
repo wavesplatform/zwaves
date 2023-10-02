@@ -7,16 +7,20 @@ env:
 
 jobs:
   build-native:
-    name: ${{ matrix.build-target }} library
+    name: ${{ env.build-target }} library
     runs-on: ${{ matrix.os }}
     env:
+      # Where a library should be
+      target-path: ${{ matrix.platform }}/${{ matrix.arch }}
+
+      # Rust build target
       build-arch: ${{ matrix.arch }}
       build-platform: ${{ matrix.platform }}
-      build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
+      build-target: ${{ env.build-arch }}-${{ env.build-platform }}
 
-      target-path: ${{ matrix.platform }}/${{ matrix.arch }}
-      # rust flags
+      # Rust target directory
       TARGET_DIR: ./target
+
       # Emit backtraces on panics.
       RUST_BACKTRACE: 1
     strategy:
