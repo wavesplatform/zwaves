@@ -53,8 +53,8 @@ jobs:
     steps:
       - name: Debug
         run: |
-          echo "Build target: ${{ matrix.build-target }}"
-          echo "Target path:  ${{ matrix.target-path }}"
+          echo "Build target: ${{ env.build-target }}"
+          echo "Target path:  ${{ env.target-path }}"
 
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: ${{ matrix.build-target }}
+          target: ${{ env.build-target }}
 
       - name: Enable Rust dependencies caching
         uses: Swatinem/rust-cache@v2
