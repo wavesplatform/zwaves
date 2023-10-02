@@ -7,7 +7,7 @@ env:
 
 jobs:
   build-native:
-    name: ${{ matrix.arch }}/${{ matrix.platform }} library
+    name: ${{ matrix.platform }}/${{ matrix.arch }} library
     runs-on: ${{ matrix.os }}
     env:
       # Where a library should be
