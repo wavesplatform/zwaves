@@ -53,9 +53,9 @@ jobs:
 #            artifact: libzwaves_jni.dylib
 
           - platform: windows
-            os: ubuntu-20.04
-            extra-packages: mingw-w64
-            build-platform: pc-windows-gnu
+            # os: ubuntu-20.04
+            # extra-packages: mingw-w64
+            # build-platform: pc-windows-gnu
             artifact: zwaves_jni.dll
 
 #          - arch: aarch64
@@ -65,6 +65,8 @@ jobs:
 #            build-arch: x86_64
 
           - arch: x86
+            os: windows-2019
+            build-platform: pc-windows-msvc
             build-arch: i686
     steps:
       - name: Debug
