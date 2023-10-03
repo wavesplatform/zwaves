@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # Where a library should be
-      target-path: ${{ matrix.platform }}/${{ matrix.arch }}
+      target-path: ${{ matrix.jni-platform }}/${{ matrix.arch }}
 
       # Rust build target
       build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
@@ -36,6 +36,7 @@ jobs:
             os: ubuntu-20.04
             build-platform: unknown-linux-gnu
             artifact: libzwaves_jni.so
+            jni-platform: linux64
 
           - platform: linux
             arch: aarch64
@@ -44,16 +45,23 @@ jobs:
           - platform: linux
             arch: x86
             extra-packages: gcc-multilib
+            jni-platform: linux32
 
           - platform: osx
             os: macos-latest
             build-platform: apple-darwin
             artifact: libzwaves_jni.dylib
+            jni-platform: osx64
 
           - platform: windows
             os: windows-2019
             build-platform: pc-windows-msvc # x86 and gcc lead to "undefined reference to _Unwind_Resume"
             artifact: zwaves_jni.dll
+            jni-platform: windows64
+
+          - platform: windows
+            arch: x86
+            jni-platform: windows32
 
           - arch: aarch64
             build-arch: aarch64
