@@ -9,4 +9,6 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 [target.i686-pc-windows-gnu]
 linker = "i686-w64-mingw32-gcc"
 ar = "i686-w64-mingw32-gcc-ar"
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# "link-arg=-fuse-ld=lld" to use LLVM linker
+# "panic=abort" to disable unwinding during exception handling, because of linker issues on this platform
+rustflags = ["-C", "link-arg=-fuse-ld=lld", "-C", "panic=abort"]
