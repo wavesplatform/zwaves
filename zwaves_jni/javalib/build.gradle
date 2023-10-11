@@ -14,7 +14,7 @@ def pr() { project.findProperty('pr').toString() ?: "" }
 def refName() { project.findProperty('refName').toString() ?: "" }
 
 ext {
-    baseVersion = "0.1.7"
+    baseVersion = "0.2.0"
 
     eligibleForPublishing = pr()?.isNumber() || refName() == "v${baseVersion}"
 
@@ -45,7 +45,7 @@ tasks.register('printVersion') {
 
 tasks.register('eligibleForPublishing') {
     doLast {
-        println(eligibleForPublishing)
+        println eligibleForPublishing
     }
 }
 
