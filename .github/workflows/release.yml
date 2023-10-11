@@ -15,38 +15,40 @@ env:
   # GITHUB_CONTEXT: ${{ toJson(github) }} # For debugging purposes
 
 jobs:
-#  build-native:
-#    name: ${{ matrix.platform }}/${{ matrix.arch }} library
-#    runs-on: ${{ matrix.os }}
-#    env:
-#      # Where a library should be
-#      target-path: ${{ matrix.jni-platform }}/${{ matrix.arch }}
-#
-#      # Rust build target
-#      build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
-#
-#      # Rust target directory
-#      TARGET_DIR: ./target
-#
-#      # Emit backtraces on panics.
-#      RUST_BACKTRACE: 1
-#    strategy:
-#      matrix:
+  build-native:
+    name: ${{ matrix.platform }}/${{ matrix.arch }} library
+    runs-on: ${{ matrix.os }}
+    env:
+      # Where a library should be
+      target-path: ${{ matrix.jni-platform }}/${{ matrix.arch }}
+
+      # Rust build target
+      build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
+
+      # Rust target directory
+      TARGET_DIR: ./target
+
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
 #        platform: [ linux, osx, windows ]
 #        arch: [ aarch64, amd64, x86 ]
-#        exclude:
-#          - platform: osx
-#            arch: x86
-#          - platform: windows
-#            arch: aarch64
-#
-#        include:
-#          - platform: linux
-#            os: ubuntu-20.04
-#            build-platform: unknown-linux-gnu
-#            artifact: libzwaves_jni.so
-#            jni-platform: linux64
-#
+        platform: [ linux ]
+        arch: [ amd64 ]
+        exclude:
+          - platform: osx
+            arch: x86
+          - platform: windows
+            arch: aarch64
+
+        include:
+          - platform: linux
+            os: ubuntu-20.04
+            build-platform: unknown-linux-gnu
+            artifact: libzwaves_jni.so
+            jni-platform: linux64
+
 #          - platform: linux
 #            arch: aarch64
 #            extra-packages: gcc-aarch64-linux-gnu
@@ -74,61 +76,61 @@ jobs:
 #
 #          - arch: aarch64
 #            build-arch: aarch64
-#
-#          - arch: amd64
-#            build-arch: x86_64
-#
+
+          - arch: amd64
+            build-arch: x86_64
+
 #          - arch: x86
 #            build-arch: i686
-#    steps:
-#      - name: Checkout sources
-#        uses: actions/checkout@v4
-#
-#      - name: Print debug information
-#        run: |
-#          echo "Build target: ${{ env.build-target }}"
-#          echo "Target path:  ${{ env.target-path }}"
-#
-#      - name: Install build tools
-#        if: ${{ matrix.extra-packages }}
-#        run: |
-#          sudo apt-get update
-#          sudo apt-get install -y ${{ matrix.extra-packages }}
-#
-#      - name: Install stable toolchain
-#        uses: dtolnay/rust-toolchain@stable
-#        with:
-#          toolchain: stable
-#          target: ${{ env.build-target }}
-#
-#      - name: Enable Rust dependencies caching
-#        uses: Swatinem/rust-cache@v2
-#
-#      - name: Run Rust tests
-#        # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
-#        if: matrix.arch == 'amd64'
-#        run: |
-#          cd zwaves_jni
-#          cargo test --lib --target ${{ env.build-target }}
-#
-#      - name: Build native libraries
-#        run: |
-#          cd zwaves_jni
-#          cargo build --release --target ${{ env.build-target }}
-#          cd ..
-#
-#          cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
-#
-#      - name: Upload result
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: native-libraries
-#          path: ${{ env.NATIVE_DIR }}/**/*
-#
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Print debug information
+        run: |
+          echo "Build target: ${{ env.build-target }}"
+          echo "Target path:  ${{ env.target-path }}"
+
+      - name: Install build tools
+        if: ${{ matrix.extra-packages }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.extra-packages }}
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ env.build-target }}
+
+      - name: Enable Rust dependencies caching
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Rust tests
+        # Architecture is x86-64 always: https://stackoverflow.com/a/71220337
+        if: matrix.arch == 'amd64'
+        run: |
+          cd zwaves_jni
+          cargo test --lib --target ${{ env.build-target }}
+
+      - name: Build native libraries
+        run: |
+          cd zwaves_jni
+          cargo build --release --target ${{ env.build-target }}
+          cd ..
+
+          cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
+
+      - name: Upload result
+        uses: actions/upload-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}/**/*
+
   build-jni:
     name: Build JNI library
     runs-on: ubuntu-20.04
-    # needs: build-native
+    needs: build-native
     steps:
       - uses: actions/checkout@v3
 
@@ -137,6 +139,11 @@ jobs:
           java-version: 8
           distribution: temurin
           cache: gradle
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}
 
       - name: Print debug information
         run: |
@@ -148,48 +155,23 @@ jobs:
           
           # echo "$GITHUB_CONTEXT" # For debugging purposes
           
-          echo "Args: ${GRADLE_EXTRA_ARGS}"
+          echo "Gradle extra arguments: ${GRADLE_EXTRA_ARGS}"
           echo "Building ${VERSION}, eligible for publishing: ${ELIGIBLE_FOR_PUBLISHING}"
           
-          # Move to next step
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          # Make environment variables available in the next step
           echo "ELIGIBLE_FOR_PUBLISHING=${ELIGIBLE_FOR_PUBLISHING}" >> $GITHUB_ENV
 
-      - name: Checking 1
+      - name: Run tests
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew ${GRADLE_EXTRA_ARGS} test
+
+      - name: Publish
         if: ${{ env.ELIGIBLE_FOR_PUBLISHING == 'true' }}
         run: |
-          echo "Run if true"
-
-      - name: Checking 1
-        if: ${{ env.ELIGIBLE_FOR_PUBLISHING == 'false' }}
-        run: |
-          echo "Run if false"
-
-#      - uses: actions/download-artifact@v3
-#        with:
-#          name: native-libraries
-#          path: ${{ env.NATIVE_DIR }}
-#
-#      - name: Run tests
-#        run: |
-#          cd zwaves_jni/javalib
-#          ./gradlew test
-#
-#      - name: Publish Snapshot
-#        if: ${{ !contains(github.ref, '/tags/') }}
-#        run: |
-#          ./gradlew publishToSonatype \
-#            -PsonatypeRepo=https://oss.sonatype.org/content/repositories/snapshots \
-#            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
-#            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
-#            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
-#            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
-#      - name: Publish Release
-#        if: contains(github.ref, '/tags/')
-#        run: |
-#          ./gradlew publishToSonatype \
-#            -PsonatypeRepo=https://oss.sonatype.org/service/local/staging/deploy/maven2 \
-#            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
-#            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
-#            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
-#            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+          cd zwaves_jni/javalib
+          ./gradlew publishToSonatype ${GRADLE_EXTRA_ARGS} \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'

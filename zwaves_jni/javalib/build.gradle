@@ -74,7 +74,7 @@ publishing {
 
 signing {
     useInMemoryPgpKeys(project.findProperty('gpgKey') as String, project.findProperty('gpgPassphrase') as String)
-    sign(publishing.publications["mavenJava"])
+    sign(publishing.publications.mavenJava)
 }
 
 nexusPublishing {
