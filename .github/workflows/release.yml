@@ -149,8 +149,7 @@ jobs:
           
           # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
           VERSION=$(./gradlew -q $GRADLE_EXTRA_ARGS printVersion)
-          # PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
-          PUBLISHING_TYPE=staging
+          PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
           
           # echo "$GITHUB_CONTEXT" # For debugging purposes
           
@@ -179,8 +178,7 @@ jobs:
         if: ${{ env.PUBLISHING_TYPE == 'staging' }}
         run: |
           cd zwaves_jni/javalib
-          # ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype closeAndReleaseSonatypeStagingRepository \
-          ./gradlew -PrefName=v0.1.7 publishToSonatype \
+          ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype closeAndReleaseSonatypeStagingRepository \
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \

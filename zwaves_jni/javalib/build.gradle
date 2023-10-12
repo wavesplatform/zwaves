@@ -21,8 +21,7 @@ ext {
     }
 
     artifactVersion = {
-        if (pr()?.isNumber()) "${baseVersion}-${pr()}-SNAPSHOT"
-        else baseVersion
+        if (pr()?.isNumber()) "${baseVersion}-${pr()}-SNAPSHOT" else baseVersion
     }
 }
 
@@ -59,7 +58,6 @@ publishing {
             pom {
                 packaging = 'jar'
                 url = 'https://github.com/wavesplatform/zwaves'
-
                 licenses {
                     license {
                         name.set("MIT License")
