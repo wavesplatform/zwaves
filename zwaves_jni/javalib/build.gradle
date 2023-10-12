@@ -16,7 +16,9 @@ def refName() { project.findProperty('refName').toString() ?: "" }
 ext {
     baseVersion = "0.1.7"
 
-    eligibleForPublishing = pr()?.isNumber() || refName() == "v${baseVersion}"
+    publishingType = {
+        if (pr()?.isNumber()) "snapshot" else if (refName() == "v${baseVersion}") "staging" else "prohibited"
+    }
 
     artifactVersion = {
         if (pr()?.isNumber()) "${baseVersion}-${pr()}-SNAPSHOT"
@@ -43,9 +45,9 @@ tasks.register('printVersion') {
     }
 }
 
-tasks.register('eligibleForPublishing') {
+tasks.register('publishingType') {
     doLast {
-        println eligibleForPublishing
+        println publishingType()
     }
 }
 

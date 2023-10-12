@@ -151,28 +151,48 @@ jobs:
           
           # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
           VERSION=$(./gradlew -q printVersion $GRADLE_EXTRA_ARGS)
-          ELIGIBLE_FOR_PUBLISHING=$(./gradlew -q eligibleForPublishing $GRADLE_EXTRA_ARGS)
+          # PUBLISHING_TYPE=$(./gradlew -q publishingType $GRADLE_EXTRA_ARGS)
+          PUBLISHING_TYPE=staging
           
           # echo "$GITHUB_CONTEXT" # For debugging purposes
           
           echo "Gradle extra arguments: ${GRADLE_EXTRA_ARGS}"
-          echo "Building ${VERSION}, eligible for publishing: ${ELIGIBLE_FOR_PUBLISHING}"
+          echo "Building ${VERSION}, publishing type: ${PUBLISHING_TYPE}"
           
           # Make environment variables available in the next step
-          echo "ELIGIBLE_FOR_PUBLISHING=${ELIGIBLE_FOR_PUBLISHING}" >> $GITHUB_ENV
+          echo "PUBLISHING_TYPE=${PUBLISHING_TYPE}" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
           cd zwaves_jni/javalib
           ./gradlew ${GRADLE_EXTRA_ARGS} test
 
-      - name: Publish
-        if: ${{ env.ELIGIBLE_FOR_PUBLISHING == 'true' }}
+      - name: Publish snapshot version
+        if: ${{ env.PUBLISHING_TYPE == 'snapshot' }}
         run: |
           cd zwaves_jni/javalib
-          ./gradlew printVersion -q -PrefName=v0.1.7
-          ./gradlew publishToSonatype --info -PrefName=v0.1.7 \
+          ./gradlew publishToSonatype ${GRADLE_EXTRA_ARGS} \
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
             -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+
+      - name: Publish staging version
+        if: ${{ env.PUBLISHING_TYPE == 'staging' }}
+        run: |
+          cd zwaves_jni/javalib
+          
+          # TODO: ${GRADLE_EXTRA_ARGS}
+          
+          # Debug step
+          ./gradlew --info retrieveSonatypeStagingProfile -PrefName=v0.1.7 \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+          
+#          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository -PrefName=v0.1.7 \
+#            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+#            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+#            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+#            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
