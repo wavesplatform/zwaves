@@ -14,7 +14,7 @@ def pr() { project.findProperty('pr').toString() ?: "" }
 def refName() { project.findProperty('refName').toString() ?: "" }
 
 ext {
-    baseVersion = "0.2.0"
+    baseVersion = "0.1.7"
 
     publishingType = {
         if (pr()?.isNumber()) "snapshot" else if (refName() == "v${baseVersion}") "staging" else "prohibited"
@@ -57,7 +57,9 @@ publishing {
             from components.java
 
             pom {
-                name.set("zwaves")
+                packaging = 'jar'
+                url = 'https://github.com/wavesplatform/zwaves'
+
                 licenses {
                     license {
                         name.set("MIT License")
@@ -75,17 +77,12 @@ publishing {
 }
 
 signing {
-    useInMemoryPgpKeys(project.findProperty('gpgKey') as String, project.findProperty('gpgPassphrase') as String)
-    sign(publishing.publications.mavenJava)
+    useInMemoryPgpKeys(gpgKey, gpgPassphrase)
+    sign configurations.archives
 }
 
 nexusPublishing {
     repositories {
-        sonatype {
-            snapshotRepositoryUrl.set(uri("https://oss.sonatype.org/content/repositories/snapshots"))
-            nexusUrl.set(uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/"))
-            username = project.findProperty('sonatypeUsername')
-            password = project.findProperty('sonatypePassword')
-        }
+        sonatype()
     }
 }
