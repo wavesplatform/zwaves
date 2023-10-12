@@ -14,7 +14,7 @@ def pr() { project.findProperty('pr').toString() ?: "" }
 def refName() { project.findProperty('refName').toString() ?: "" }
 
 ext {
-    baseVersion = "0.2.0"
+    baseVersion = "0.1.7"
 
     eligibleForPublishing = pr()?.isNumber() || refName() == "v${baseVersion}"
 
