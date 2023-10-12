@@ -185,14 +185,8 @@ jobs:
           # TODO: ${GRADLE_EXTRA_ARGS}
           
           # Debug step
-          ./gradlew --info retrieveSonatypeStagingProfile -PrefName=v0.1.7 \
+          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository -PrefName=v0.1.7 \
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
             -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
-          
-#          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository -PrefName=v0.1.7 \
-#            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
-#            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
-#            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
-#            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
