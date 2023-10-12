@@ -32,8 +32,10 @@ jobs:
       RUST_BACKTRACE: 1
     strategy:
       matrix:
-        platform: [ linux, osx, windows ]
-        arch: [ aarch64, amd64, x86 ]
+#        platform: [ linux, osx, windows ]
+#        arch: [ aarch64, amd64, x86 ]
+        platform: [ linux ]
+        arch: [ amd64 ]
         exclude:
           - platform: osx
             arch: x86
@@ -47,39 +49,39 @@ jobs:
             artifact: libzwaves_jni.so
             jni-platform: linux64
 
-          - platform: linux
-            arch: aarch64
-            extra-packages: gcc-aarch64-linux-gnu
-
-          - platform: linux
-            arch: x86
-            extra-packages: gcc-multilib
-            jni-platform: linux32
-
-          - platform: osx
-            os: macos-latest
-            build-platform: apple-darwin
-            artifact: libzwaves_jni.dylib
-            jni-platform: osx64
-
-          - platform: windows
-            os: windows-2019
-            build-platform: pc-windows-msvc # x86 and gcc lead to "undefined reference to _Unwind_Resume"
-            artifact: zwaves_jni.dll
-            jni-platform: windows64
-
-          - platform: windows
-            arch: x86
-            jni-platform: windows32
-
-          - arch: aarch64
-            build-arch: aarch64
+#          - platform: linux
+#            arch: aarch64
+#            extra-packages: gcc-aarch64-linux-gnu
+#
+#          - platform: linux
+#            arch: x86
+#            extra-packages: gcc-multilib
+#            jni-platform: linux32
+#
+#          - platform: osx
+#            os: macos-latest
+#            build-platform: apple-darwin
+#            artifact: libzwaves_jni.dylib
+#            jni-platform: osx64
+#
+#          - platform: windows
+#            os: windows-2019
+#            build-platform: pc-windows-msvc # x86 and gcc lead to "undefined reference to _Unwind_Resume"
+#            artifact: zwaves_jni.dll
+#            jni-platform: windows64
+#
+#          - platform: windows
+#            arch: x86
+#            jni-platform: windows32
+#
+#          - arch: aarch64
+#            build-arch: aarch64
 
           - arch: amd64
             build-arch: x86_64
 
-          - arch: x86
-            build-arch: i686
+#          - arch: x86
+#            build-arch: i686
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -148,8 +150,9 @@ jobs:
           cd ./zwaves_jni/javalib
           
           # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
-          VERSION=$(./gradlew -q printVersion $GRADLE_EXTRA_ARGS)
-          PUBLISHING_TYPE=$(./gradlew -q publishingType $GRADLE_EXTRA_ARGS)
+          VERSION=$(./gradlew -q $GRADLE_EXTRA_ARGS printVersion)
+          # PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
+          PUBLISHING_TYPE=staging
           
           # echo "$GITHUB_CONTEXT" # For debugging purposes
           
@@ -168,7 +171,7 @@ jobs:
         if: ${{ env.PUBLISHING_TYPE == 'snapshot' }}
         run: |
           cd zwaves_jni/javalib
-          ./gradlew publishToSonatype ${GRADLE_EXTRA_ARGS} \
+          ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype \
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
@@ -178,7 +181,8 @@ jobs:
         if: ${{ env.PUBLISHING_TYPE == 'staging' }}
         run: |
           cd zwaves_jni/javalib
-          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository ${GRADLE_EXTRA_ARGS} \
+          # closeAndReleaseSonatypeStagingRepository \
+          ./gradlew -PrefName=v0.1.7 publishToSonatype \ 
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
