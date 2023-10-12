@@ -1,4 +1,4 @@
-package com.wavesplatform.zwaves.bls12;
+package com.wavesplatform.zwaves.bn256;
 
 public class Groth16 {
     public static native boolean verify(byte[] vk, byte[] proof, byte[] inputs);
