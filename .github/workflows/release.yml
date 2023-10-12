@@ -145,44 +145,10 @@ jobs:
           name: native-libraries
           path: ${{ env.NATIVE_DIR }}
 
-      - name: Print debug information
-        run: |
-          cd ./zwaves_jni/javalib
-          
-          # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
-          VERSION=$(./gradlew -q $GRADLE_EXTRA_ARGS printVersion)
-          # PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
-          PUBLISHING_TYPE=staging
-          
-          # echo "$GITHUB_CONTEXT" # For debugging purposes
-          
-          echo "Gradle extra arguments: ${GRADLE_EXTRA_ARGS}"
-          echo "Building ${VERSION}, publishing type: ${PUBLISHING_TYPE}"
-          
-          # Make environment variables available in the next step
-          echo "PUBLISHING_TYPE=${PUBLISHING_TYPE}" >> $GITHUB_ENV
-
-      - name: Run tests
-        run: |
-          cd zwaves_jni/javalib
-          ./gradlew ${GRADLE_EXTRA_ARGS} test
-
-      - name: Publish snapshot version
-        if: ${{ env.PUBLISHING_TYPE == 'snapshot' }}
+      - name: Publish version
         run: |
           cd zwaves_jni/javalib
           ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype \
-            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
-            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
-            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
-            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
-
-      - name: Publish staging version
-        if: ${{ env.PUBLISHING_TYPE == 'staging' }}
-        run: |
-          cd zwaves_jni/javalib
-          # closeAndReleaseSonatypeStagingRepository \
-          ./gradlew -PrefName=v0.1.7 publishToSonatype \ 
             -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
             -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
             -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \

@@ -5,30 +5,12 @@ plugins {
     id "io.github.gradle-nexus.publish-plugin" version "1.3.0"
 }
 
+group = "com.wavesplatform"
+version = "0.2.0"
+
 repositories {
     mavenCentral()
 }
-
-def pr() { project.findProperty('pr').toString() ?: "" }
-
-def refName() { project.findProperty('refName').toString() ?: "" }
-
-ext {
-    baseVersion = "0.1.7"
-
-    publishingType = {
-        if (pr()?.isNumber()) "snapshot" else if (refName() == "v${baseVersion}") "staging" else "prohibited"
-    }
-
-    artifactVersion = {
-        if (pr()?.isNumber()) "${baseVersion}-${pr()}-SNAPSHOT"
-        else baseVersion
-    }
-}
-
-group = "com.wavesplatform"
-archivesBaseName = "zwaves"
-version = artifactVersion()
 
 dependencies {
     testImplementation 'junit:junit:4.12'
@@ -39,25 +21,12 @@ test {
     maxHeapSize = '1G'
 }
 
-tasks.register('printVersion') {
-    doLast {
-        println version
-    }
-}
-
-tasks.register('publishingType') {
-    doLast {
-        println publishingType()
-    }
-}
-
 publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
 
             pom {
-                name.set("com.wavesplatform:zwaves")
                 licenses {
                     license {
                         name.set("MIT License")
@@ -75,17 +44,12 @@ publishing {
 }
 
 signing {
-    useInMemoryPgpKeys(project.findProperty('gpgKey') as String, project.findProperty('gpgPassphrase') as String)
-    sign(publishing.publications.mavenJava)
+    useInMemoryPgpKeys(gpgKey, gpgPassphrase)
+    sign configurations.archives
 }
 
 nexusPublishing {
     repositories {
-        sonatype {
-            snapshotRepositoryUrl.set(uri("https://oss.sonatype.org/content/repositories/snapshots"))
-            nexusUrl.set(uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/"))
-            username = project.findProperty('sonatypeUsername')
-            password = project.findProperty('sonatypePassword')
-        }
+        sonatype()
     }
 }
