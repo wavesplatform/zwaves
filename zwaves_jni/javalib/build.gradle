@@ -14,7 +14,7 @@ def pr() { project.findProperty('pr').toString() ?: "" }
 def refName() { project.findProperty('refName').toString() ?: "" }
 
 ext {
-    baseVersion = "0.1.7"
+    baseVersion = "0.2.0"
 
     publishingType = {
         if (pr()?.isNumber()) "snapshot" else if (refName() == "v${baseVersion}") "staging" else "prohibited"
@@ -83,7 +83,7 @@ nexusPublishing {
     repositories {
         sonatype {
             snapshotRepositoryUrl.set(uri("https://oss.sonatype.org/content/repositories/snapshots"))
-            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+            nexusUrl.set(uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/"))
             username = project.findProperty('sonatypeUsername')
             password = project.findProperty('sonatypePassword')
         }
