@@ -52,7 +52,9 @@ tasks.register('publishingType') {
 
 task sourceJar(type: Jar) {
     archiveClassifier = 'sources'
-    from sourceSets.main.allSource
+    from (sourceSets.main.allSource) {
+        exclude 'META-INF/native'
+    }
 }
 
 javadoc {
