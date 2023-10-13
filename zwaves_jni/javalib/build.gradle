@@ -76,7 +76,7 @@ publishing {
 
 signing {
     useInMemoryPgpKeys(gpgKey, gpgPassphrase)
-    sign configurations.archives
+    sign publishing.publications.mavenJava
 }
 
 nexusPublishing {
