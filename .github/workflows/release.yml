@@ -11,7 +11,7 @@ on:
 
 env:
   NATIVE_DIR: zwaves_jni/javalib/src/main/resources/META-INF/native
-  GRADLE_EXTRA_ARGS: --console=plain -Ppr=${{ github.event.number }} -PrefName=${{ github.head_ref }}
+  GRADLE_EXTRA_ARGS: --console=plain -Ppr=${{ github.event.number }} -Pref=${{ github.ref }}
   # GITHUB_CONTEXT: ${{ toJson(github) }} # For debugging purposes
 
 jobs:

@@ -11,13 +11,13 @@ repositories {
 
 def pr() { project.findProperty('pr').toString() ?: "" }
 
-def refName() { project.findProperty('refName').toString() ?: "" }
+def ref() { project.findProperty('ref').toString().replaceAll('^.+/(.+)$', '$1') ?: "" }
 
 ext {
     baseVersion = "0.2.0"
 
     publishingType = {
-        if (pr()?.isNumber()) "snapshot" else if (refName() == "v${baseVersion}") "staging" else "prohibited"
+        if (pr()?.isNumber()) "snapshot" else if (ref() == "v${baseVersion}") "staging" else "prohibited"
     }
 
     artifactVersion = {
