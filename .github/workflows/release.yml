@@ -1,0 +1,185 @@
+name: Publish artifacts to Sonatype Repo
+
+on:
+  push:
+    branches:
+      - master
+      - version-[0-9].[0-9]+.x
+    tags:
+      - v[0-9].[0-9]+.[0-9]+
+  pull_request:
+
+env:
+  NATIVE_DIR: zwaves_jni/javalib/src/main/resources/META-INF/native
+  GRADLE_EXTRA_ARGS: --console=plain -Ppr=${{ github.event.number }} -PrefName=${{ github.head_ref }}
+  # GITHUB_CONTEXT: ${{ toJson(github) }} # For debugging purposes
+
+jobs:
+  build-native:
+    name: ${{ matrix.platform }}/${{ matrix.arch }} library
+    runs-on: ${{ matrix.os }}
+    env:
+      # Where a library should be
+      target-path: ${{ matrix.jni-platform }}/${{ matrix.arch }}
+
+      # Rust build target
+      build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
+
+      # Rust target directory
+      TARGET_DIR: ./target
+
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        platform: [ linux, osx, windows ]
+        arch: [ aarch64, amd64, x86 ]
+        exclude:
+          - platform: osx
+            arch: x86
+          - platform: windows
+            arch: aarch64
+
+        include:
+          - platform: linux
+            os: ubuntu-20.04
+            build-platform: unknown-linux-gnu
+            artifact: libzwaves_jni.so
+            jni-platform: linux64
+
+          - platform: linux
+            arch: aarch64
+            extra-packages: gcc-aarch64-linux-gnu
+
+          - platform: linux
+            arch: x86
+            extra-packages: gcc-multilib
+            jni-platform: linux32
+
+          - platform: osx
+            os: macos-latest
+            build-platform: apple-darwin
+            artifact: libzwaves_jni.dylib
+            jni-platform: osx64
+
+          - platform: windows
+            os: windows-2019
+            build-platform: pc-windows-msvc # x86 and gcc lead to "undefined reference to _Unwind_Resume"
+            artifact: zwaves_jni.dll
+            jni-platform: windows64
+
+          - platform: windows
+            arch: x86
+            jni-platform: windows32
+
+          - arch: aarch64
+            build-arch: aarch64
+
+          - arch: amd64
+            build-arch: x86_64
+
+          - arch: x86
+            build-arch: i686
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Print debug information
+        run: |
+          echo "Build target: ${{ env.build-target }}"
+          echo "Target path:  ${{ env.target-path }}"
+
+      - name: Install build tools
+        if: ${{ matrix.extra-packages }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.extra-packages }}
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ env.build-target }}
+
+      - name: Enable Rust dependencies caching
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Rust tests
+        # Architecture is always x86-64: https://stackoverflow.com/a/71220337
+        if: matrix.arch == 'amd64'
+        run: |
+          cd zwaves_jni
+          cargo test --lib --target ${{ env.build-target }}
+
+      - name: Build native libraries
+        run: |
+          cd zwaves_jni
+          cargo build --release --target ${{ env.build-target }}
+          cd ..
+
+          cp target/${{ env.build-target }}/release/${{ matrix.artifact }} ${{ env.NATIVE_DIR }}/${{ env.target-path }}
+
+      - name: Upload result
+        uses: actions/upload-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}/**/*
+
+  build-jni:
+    name: Build JNI library
+    runs-on: ubuntu-20.04
+    needs: build-native
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 8
+          distribution: temurin
+          cache: gradle
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: native-libraries
+          path: ${{ env.NATIVE_DIR }}
+
+      - name: Print debug information
+        run: |
+          cd ./zwaves_jni/javalib
+          
+          # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
+          VERSION=$(./gradlew -q $GRADLE_EXTRA_ARGS printVersion)
+          PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
+          
+          # echo "$GITHUB_CONTEXT" # For debugging purposes
+          
+          echo "Gradle extra arguments: ${GRADLE_EXTRA_ARGS}"
+          echo "Building ${VERSION}, publishing type: ${PUBLISHING_TYPE}"
+          
+          # Make environment variables available in the next step
+          echo "PUBLISHING_TYPE=${PUBLISHING_TYPE}" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew ${GRADLE_EXTRA_ARGS} test
+
+      - name: Publish snapshot version
+        if: ${{ env.PUBLISHING_TYPE == 'snapshot' }}
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
+
+      - name: Publish staging version
+        if: ${{ env.PUBLISHING_TYPE == 'staging' }}
+        run: |
+          cd zwaves_jni/javalib
+          ./gradlew ${GRADLE_EXTRA_ARGS} publishToSonatype closeAndReleaseSonatypeStagingRepository \
+            -PsonatypeUsername='${{ secrets.OSSRH_USERNAME }}' \
+            -PsonatypePassword='${{ secrets.OSSRH_PASSWORD }}' \
+            -PgpgKey='${{ secrets.OSSRH_GPG_KEY_ASCII }}' \
+            -PgpgPassphrase='${{ secrets.OSSRH_GPG_PASSPHRASE }}'
