@@ -14,7 +14,7 @@ def pr() { project.findProperty('pr').toString() ?: "" }
 def ref() { project.findProperty('ref').toString().replaceAll('^.+/(.+)$', '$1') ?: "" }
 
 ext {
-    baseVersion = "0.2.0"
+    baseVersion = "0.2.1"
 
     publishingType = {
         if (pr()?.isNumber()) "snapshot" else if (ref() == "v${baseVersion}") "staging" else "prohibited"
