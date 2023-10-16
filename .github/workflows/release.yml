@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # Where a library should be
-      target-path: ${{ matrix.jni-platform }}/${{ matrix.arch }}
+      target-path: ${{ matrix.jni-platform }}/${{ matrix.target-arch }}
 
       # Rust build target
       build-target: ${{ matrix.build-arch }}-${{ matrix.build-platform }}
@@ -41,6 +41,18 @@ jobs:
             arch: aarch64
 
         include:
+          - arch: aarch64
+            build-arch: aarch64
+            target-arch: aarch64
+
+          - arch: amd64
+            build-arch: x86_64
+            target-arch: amd64
+
+          - arch: x86
+            build-arch: i686
+            target-arch: x86
+
           - platform: linux
             os: ubuntu-20.04
             build-platform: unknown-linux-gnu
@@ -62,6 +74,11 @@ jobs:
             artifact: libzwaves_jni.dylib
             jni-platform: osx64
 
+          - platform: osx
+            arch: amd64
+            # https://github.com/openjdk/jdk/commit/5b1baa3d10d9ef3f07f133ece8a5f1d40311c74d#diff-6078ab1e47c6bb312b7f41e7539b4849189260c38f9b359c205a5aa0f633533dR278
+            target-arch: x86_64
+
           - platform: windows
             os: windows-2019
             build-platform: pc-windows-msvc # x86 and gcc lead to "undefined reference to _Unwind_Resume"
@@ -71,15 +88,6 @@ jobs:
           - platform: windows
             arch: x86
             jni-platform: windows32
-
-          - arch: aarch64
-            build-arch: aarch64
-
-          - arch: amd64
-            build-arch: x86_64
-
-          - arch: x86
-            build-arch: i686
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -146,16 +154,16 @@ jobs:
       - name: Print debug information
         run: |
           cd ./zwaves_jni/javalib
-          
+
           # About -q: https://github.com/gradle/gradle/issues/5098#issuecomment-1084652709
           VERSION=$(./gradlew -q $GRADLE_EXTRA_ARGS printVersion)
           PUBLISHING_TYPE=$(./gradlew -q $GRADLE_EXTRA_ARGS publishingType)
-          
+
           # echo "$GITHUB_CONTEXT" # For debugging purposes
-          
+
           echo "Gradle extra arguments: ${GRADLE_EXTRA_ARGS}"
           echo "Building ${VERSION}, publishing type: ${PUBLISHING_TYPE}"
-          
+
           # Make environment variables available in the next step
           echo "PUBLISHING_TYPE=${PUBLISHING_TYPE}" >> $GITHUB_ENV
 
